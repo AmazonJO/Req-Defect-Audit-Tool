@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Req Reporting Tool</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: linear-gradient(135deg, #0f1b2d 0%, #1a2940 100%);
+      --text: #ffffff; --text-secondary: #ccd6e0;
+      --card-bg: #1e2d42; --card-border: #2a3a4e;
+      --input-bg: #0f1b2d; --input-text: #ffffff; --input-border: #2a3a4e;
+      --tab-bg: #1a2940; --tab-text: #8899aa; --tab-hover-bg: #223350; --tab-hover-text: #ccd6e0;
+      --table-border: #2a3a4e; --table-cell: #ffffff; --table-even: rgba(255,153,0,0.03); --table-hover: rgba(255,153,0,0.07);
+      --secondary-btn-bg: #2a3a4e; --secondary-btn-text: #ffffff;
+      --info-text: #a0aec0; --label-text: #ccd6e0;
+    }
+    body.light {
+      --bg: linear-gradient(135deg, #f0f2f5 0%, #e8ecf1 100%);
+      --text: #1a1a1a; --text-secondary: #333333;
+      --card-bg: #ffffff; --card-border: #d0d5dd;
+      --input-bg: #f7f8fa; --input-text: #1a1a1a; --input-border: #d0d5dd;
+      --tab-bg: #e8ecf1; --tab-text: #555555; --tab-hover-bg: #dde1e8; --tab-hover-text: #333333;
+      --table-border: #d0d5dd; --table-cell: #1a1a1a; --table-even: rgba(0,0,0,0.02); --table-hover: rgba(255,153,0,0.08);
+      --secondary-btn-bg: #e8ecf1; --secondary-btn-text: #1a1a1a;
+      --info-text: #555555; --label-text: #333333;
+    }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 30px 20px; transition: background 0.3s, color 0.3s; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .theme-toggle { position: fixed; top: 16px; right: 16px; z-index: 999; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; padding: 6px 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 18px; transition: all 0.2s; }
+    .theme-toggle span { font-size: 11px; color: var(--text-secondary); font-weight: 600; }
+    .theme-toggle:hover { border-color: #ff9900; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .header .logo { font-size: 48px; margin-bottom: 8px; }
+    .header h1 { font-size: 28px; color: #ff9900; font-weight: 700; }
+    .header .subtitle { color: var(--text-secondary); font-size: 15px; margin-top: 6px; }
+    .tab-bar { display: flex; gap: 0; margin-bottom: 24px; border-radius: 8px; overflow: hidden; border: 1px solid var(--card-border); flex-wrap: wrap; }
+    .tab { flex: 1; padding: 14px 12px; cursor: pointer; font-size: 13px; font-weight: 600; background: var(--tab-bg); color: var(--tab-text); text-align: center; transition: all 0.2s; min-width: 140px; }
+    .tab:hover { background: var(--tab-hover-bg); color: var(--tab-hover-text); }
+    .tab.active { background: #ff9900; color: #111; }
+    .tab i { margin-right: 6px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .card { background: var(--card-bg); border-radius: 10px; padding: 24px; margin-bottom: 18px; border: 1px solid var(--card-border); transition: background 0.3s; }
+    .card h2 { font-size: 17px; margin-bottom: 14px; color: #ff9900; display: flex; align-items: center; gap: 10px; }
+    .card h2 .step { background: #ff9900; color: #111; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; }
+    label { font-size: 13px; color: var(--label-text); display: block; margin-bottom: 6px; }
+    input[type="text"] { padding: 10px 14px; font-size: 14px; border: 1px solid var(--input-border); border-radius: 6px; background: var(--input-bg); color: var(--input-text); outline: none; }
+    input[type="text"]:focus { border-color: #ff9900; }
+    input[type="file"] { display: none; }
+    .file-upload-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--secondary-btn-bg); color: var(--secondary-btn-text); padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; border: 1px solid var(--card-border); transition: all 0.2s; }
+    .file-upload-btn:hover { background: var(--tab-hover-bg); border-color: #ff9900; }
+    .file-upload-name { font-size: 13px; color: var(--info-text); margin-left: 10px; }
+    button { background: #ff9900; color: #111; border: none; padding: 12px 24px; border-radius: 6px; font-size: 15px; cursor: pointer; font-weight: 700; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+    button:hover { background: #ffad33; transform: translateY(-1px); }
+    .btn-sm { padding: 8px 16px; font-size: 13px; }
+    .btn-secondary { background: var(--secondary-btn-bg); color: var(--secondary-btn-text); }
+    .info { font-size: 13px; color: var(--info-text); margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+    th { background: #ff9900; color: #111; padding: 10px 12px; text-align: left; font-weight: 700; }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--table-border); color: var(--table-cell); }
+    tr:nth-child(even) { background: var(--table-even); }
+    tr:hover { background: var(--table-hover); }
+    .tag { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; margin: 1px 3px; }
+    .tag-green { background: rgba(72,187,120,0.2); color: #48bb78; }
+    .tag-yellow { background: rgba(237,187,52,0.2); color: #edbb34; }
+    .tag-red { background: rgba(245,101,101,0.2); color: #f56565; }
+    .row-green { background: rgba(72,187,120,0.08) !important; }
+    .row-yellow { background: rgba(237,187,52,0.08) !important; }
+    .row-red { background: rgba(245,101,101,0.08) !important; }
+    .summary-card { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+    .summary-item { flex: 1; min-width: 120px; padding: 16px; border-radius: 8px; text-align: center; }
+    .summary-item .num { font-size: 28px; font-weight: 700; }
+    .summary-item .label { font-size: 12px; margin-top: 4px; }
+    .name-tag { display: inline-flex; align-items: center; gap: 4px; background: var(--input-bg); border: 1px solid var(--input-border); padding: 4px 10px; border-radius: 16px; font-size: 12px; margin: 2px; }
+    .name-tag .remove { cursor: pointer; color: #f56565; font-weight: 700; }
+    .copy-btn { font-size: 13px; padding: 8px 16px; background: var(--secondary-btn-bg); color: var(--secondary-btn-text); border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .copy-btn:hover { background: var(--tab-hover-bg); }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="theme-toggle" onclick="toggleTheme()">
+    <i class="fas fa-sun" id="themeIcon"></i>
+    <span id="themeLabel">Light Mode</span>
+  </div>
+
+  <div class="header">
+    <div class="logo"><i class="fas fa-clipboard-check" style="color:#ff9900;"></i></div>
+    <h1>Weekly Req Reporting Tool</h1>
+    <p class="subtitle">Automate your weekly req defect reporting and assignment audits</p>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('audit')"><i class="fas fa-user-check"></i>Assignment Audit</div>
+    <div class="tab" onclick="switchTab('defects')"><i class="fas fa-bug"></i>Req Defects</div>
+    <div class="tab" onclick="switchTab('pids')"><i class="fas fa-id-badge"></i>Missing PIDs</div>
+    <div class="tab" onclick="switchTab('pending')"><i class="fas fa-hourglass-half"></i>Pending Approval</div>
+  </div>
+
+  <!-- TAB 1: Assignment Audit -->
+  <div class="tab-content active" id="tab-audit">
+    <div class="card">
+      <h2><span class="step">1</span><i class="fas fa-users-cog"></i> Configure Recruiters</h2>
+      <p class="info"><i class="fas fa-info-circle"></i> Everyone not in Green or Yellow is flagged Red. Campus hires are excluded.</p>
+      <div style="margin-top:14px;">
+        <h3 style="font-size:14px;color:#48bb78;margin-bottom:6px;"><i class="fas fa-check-circle"></i> Approved (Green)</h3>
+        <div id="greenNames" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;"></div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="text" id="greenInput" placeholder="Add name..." style="width:200px;" />
+          <button class="btn-sm" onclick="addName('green')"><i class="fas fa-plus"></i></button>
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <h3 style="font-size:14px;color:#edbb34;margin-bottom:6px;"><i class="fas fa-exclamation-triangle"></i> Review (Yellow)</h3>
+        <div id="yellowNames" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;"></div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="text" id="yellowInput" placeholder="Add name..." style="width:200px;" />
+          <button class="btn-sm" onclick="addName('yellow')"><i class="fas fa-plus"></i></button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2><span class="step">2</span><i class="fas fa-file-upload"></i> Upload Assignment Report</h2>
+      <label for="auditFile" class="file-upload-btn"><i class="fas fa-folder-open"></i> Choose File</label>
+      <span id="auditFileName" class="file-upload-name">No file selected</span>
+      <button id="auditClearBtn" class="btn-sm" onclick="clearAuditFile()" style="display:none;margin-left:8px;background:#f56565;color:#fff;"><i class="fas fa-times"></i> Clear</button>
+      <input type="file" id="auditFile" accept=".xlsx,.xls,.csv" />
+    </div>
+    <div class="card" id="auditResults" style="display:none;">
+      <h2><span class="step">3</span><i class="fas fa-chart-bar"></i> Audit Results</h2>
+      <div id="auditSummary"></div>
+      <div id="auditOutput"></div>
+    </div>
+  </div>
+
+  <!-- TAB 2-4: Defects Report (shared upload) -->
+  <div class="tab-content" id="tab-defects">
+    <div class="card" id="defectsUploadCard">
+      <h2><i class="fas fa-file-upload"></i> Upload Defects Report</h2>
+      <label for="defectsFile" class="file-upload-btn"><i class="fas fa-folder-open"></i> Choose File</label>
+      <span id="defectsFileName" class="file-upload-name">No file selected</span>
+      <button id="defectsClearBtn" class="btn-sm" onclick="clearDefectsFile()" style="display:none;margin-left:8px;background:#f56565;color:#fff;"><i class="fas fa-times"></i> Clear</button>
+      <input type="file" id="defectsFile" accept=".xlsx,.xls,.csv" />
+      <p class="info"><i class="fas fa-info-circle"></i> This file is shared across Req Defects, Missing PIDs, and Pending Approval tabs.</p>
+    </div>
+    <div class="card" id="defectsResults" style="display:none;">
+      <h2><i class="fas fa-bug"></i> Yardstick Req Defects</h2>
+      <div id="defectsOutput"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-pids">
+    <div class="card" id="pidsUploadReminder" style="display:none;">
+      <p class="info"><i class="fas fa-info-circle"></i> Upload the defects report in the Req Defects tab first.</p>
+    </div>
+    <div class="card" id="pidsResults" style="display:none;">
+      <h2><i class="fas fa-id-badge"></i> Reqs Missing PIDs</h2>
+      <div id="pidsOutput"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-pending">
+    <div class="card" id="pendingUploadReminder" style="display:none;">
+      <p class="info"><i class="fas fa-info-circle"></i> Upload the defects report in the Req Defects tab first.</p>
+    </div>
+    <div class="card" id="pendingResults" style="display:none;">
+      <h2><i class="fas fa-hourglass-half"></i> Reqs Pending Approval</h2>
+      <div id="pendingOutput"></div>
+    </div>
+  </div>
+</div>
+
+<footer style="text-align:center;padding:30px 20px 20px;color:#4a5568;font-size:12px;">
+  <span style="color:#ff9900;">⚡</span> <strong>Built by AWS TA Vibers</strong> <span style="color:#4a5568;margin:0 6px;">|</span> v1.0
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ========== THEME ==========
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  var icon = document.getElementById('themeIcon');
+  var label = document.getElementById('themeLabel');
+  if (document.body.classList.contains('light')) { icon.className='fas fa-moon'; label.textContent='Dark Mode'; localStorage.setItem('reqTheme','light'); }
+  else { icon.className='fas fa-sun'; label.textContent='Light Mode'; localStorage.setItem('reqTheme','dark'); }
+}
+if (localStorage.getItem('reqTheme')==='light') { document.body.classList.add('light'); document.getElementById('themeIcon').className='fas fa-moon'; document.getElementById('themeLabel').textContent='Dark Mode'; }
+
+// ========== TABS ==========
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('.tab-content').forEach(function(t){t.classList.remove('active');});
+  var tabs = document.querySelectorAll('.tab');
+  var map = {audit:0, defects:1, pids:2, pending:3};
+  tabs[map[tab]].classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  // Show upload reminder if defects file not loaded
+  if ((tab==='pids'||tab==='pending') && !defectsData) {
+    document.getElementById(tab+'UploadReminder').style.display='block';
+  }
+}
+
+// ========== RECRUITER TIERS ==========
+var tiers = { green: ['Joanne Henderson','Samta Agrawal'], yellow: ['Kyle Hehir','Christina LaBella-Chan'] };
+var saved = localStorage.getItem('reqTiers');
+if (saved) { try { tiers=JSON.parse(saved); } catch(e){} }
+function saveTiers() { localStorage.setItem('reqTiers',JSON.stringify(tiers)); }
+function renderTiers() {
+  ['green','yellow'].forEach(function(tier) {
+    var el=document.getElementById(tier+'Names'); var html='';
+    tiers[tier].forEach(function(name,idx) { html+='<span class="name-tag"><span>'+name+'</span> <span class="remove" onclick="removeName(\''+tier+'\','+idx+')">✕</span></span>'; });
+    el.innerHTML=html;
+  });
+}
+function addName(tier) { var input=document.getElementById(tier+'Input'); var v=input.value.trim(); if(!v)return; tiers[tier].push(v); input.value=''; saveTiers(); renderTiers(); }
+function removeName(tier,idx) { tiers[tier].splice(idx,1); saveTiers(); renderTiers(); }
+renderTiers();
+function getTier(name) {
+  var n=(name||'').trim().toLowerCase();
+  for(var i=0;i<tiers.green.length;i++){if(tiers.green[i].toLowerCase()===n)return'green';}
+  for(var j=0;j<tiers.yellow.length;j++){if(tiers.yellow[j].toLowerCase()===n)return'yellow';}
+  return'red';
+}
+</script>
+
+<script>
+// ========== HELPER ==========
+function findCol(row, keywords) {
+  var keys=Object.keys(row);
+  for(var i=0;i<keys.length;i++){var k=keys[i].toLowerCase();for(var j=0;j<keywords.length;j++){if(k.indexOf(keywords[j])!==-1)return keys[i];}}
+  return null;
+}
+
+// ========== AUDIT FILE ==========
+document.getElementById('auditFile').addEventListener('change', function(e) {
+  var file=e.target.files[0]; if(!file)return;
+  document.getElementById('auditFileName').textContent=file.name;
+  document.getElementById('auditClearBtn').style.display='inline-flex';
+  var reader=new FileReader();
+  reader.onload=function(evt){var data=new Uint8Array(evt.target.result);var wb=XLSX.read(data,{type:'array'});var sheet=wb.Sheets[wb.SheetNames[0]];var raw=XLSX.utils.sheet_to_json(sheet,{header:1});raw.shift();var headers=raw.shift();var rows=[];for(var i=0;i<raw.length;i++){var obj={};for(var j=0;j<headers.length;j++){if(headers[j])obj[headers[j]]=raw[i][j];}rows.push(obj);}runAudit(rows);};
+  reader.readAsArrayBuffer(file);
+});
+function clearAuditFile(){document.getElementById('auditFile').value='';document.getElementById('auditFileName').textContent='No file selected';document.getElementById('auditClearBtn').style.display='none';document.getElementById('auditResults').style.display='none';}
+
+function runAudit(rows) {
+  if(!rows.length)return;
+  var recruiterCol=findCol(rows[0],['req recruiter','recruiter name']);
+  var hireTypeCol=findCol(rows[0],['hire type','hire typ']);
+  var reqUrlCol=findCol(rows[0],['req hire url','req url']);
+  var jobFamilyCol=findCol(rows[0],['job family']);
+  var hmCol=findCol(rows[0],['hiring manager']);
+  if(!recruiterCol){document.getElementById('auditOutput').innerHTML='<p class="status" style="background:rgba(245,101,101,0.15);color:#f56565;">Could not find Recruiter column.</p>';document.getElementById('auditResults').style.display='block';return;}
+
+  var filtered=rows.filter(function(r){if(!hireTypeCol)return true;return(r[hireTypeCol]||'').toString().toLowerCase().indexOf('campus')===-1;});
+  var green=[],yellow=[],red=[],counts={};
+  filtered.forEach(function(r){
+    var rec=(r[recruiterCol]||'').toString().trim();if(!rec)return;
+    if(!counts[rec])counts[rec]=0;counts[rec]++;
+    var tier=getTier(rec);
+    var entry={recruiter:rec,reqUrl:reqUrlCol?(r[reqUrlCol]||''):'',jobFamily:jobFamilyCol?(r[jobFamilyCol]||''):'',hm:hmCol?(r[hmCol]||''):''};
+    if(tier==='green')green.push(entry);else if(tier==='yellow')yellow.push(entry);else red.push(entry);
+  });
+
+  var html='<div class="summary-card">';
+  html+='<div class="summary-item" style="background:rgba(72,187,120,0.15);border:1px solid rgba(72,187,120,0.3);"><div class="num" style="color:#48bb78;">'+green.length+'</div><div class="label" style="color:#48bb78;">Approved</div></div>';
+  html+='<div class="summary-item" style="background:rgba(237,187,52,0.15);border:1px solid rgba(237,187,52,0.3);"><div class="num" style="color:#edbb34;">'+yellow.length+'</div><div class="label" style="color:#edbb34;">Review</div></div>';
+  html+='<div class="summary-item" style="background:rgba(245,101,101,0.15);border:1px solid rgba(245,101,101,0.3);"><div class="num" style="color:#f56565;">'+red.length+'</div><div class="label" style="color:#f56565;">Misassigned</div></div>';
+  html+='<div class="summary-item" style="background:rgba(99,179,237,0.15);border:1px solid rgba(99,179,237,0.3);"><div class="num" style="color:#63b3ed;">'+filtered.length+'</div><div class="label" style="color:#63b3ed;">Total</div></div>';
+  html+='</div>';
+  document.getElementById('auditSummary').innerHTML=html;
+
+  var out='<table><tr><th>Recruiter</th><th>Count</th><th>Status</th></tr>';
+  Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];}).forEach(function(name){
+    var tier=getTier(name);var cls=tier==='green'?'tag-green':tier==='yellow'?'tag-yellow':'tag-red';
+    var lbl=tier==='green'?'Approved':tier==='yellow'?'Review':'Misassigned';
+    var rc=tier==='green'?'row-green':tier==='yellow'?'row-yellow':'row-red';
+    out+='<tr class="'+rc+'"><td>'+name+'</td><td>'+counts[name]+'</td><td><span class="tag '+cls+'">'+lbl+'</span></td></tr>';
+  });
+  out+='</table>';
+
+  if(yellow.length>0){out+='<h3 style="color:#edbb34;margin-top:20px;">Needs Review ('+yellow.length+')</h3>';out+=detailTable(yellow,'row-yellow');}
+  if(red.length>0){out+='<h3 style="color:#f56565;margin-top:20px;">Misassigned ('+red.length+')</h3>';out+=detailTable(red,'row-red');}
+  document.getElementById('auditOutput').innerHTML=out;
+  document.getElementById('auditResults').style.display='block';
+}
+function detailTable(reqs,cls){
+  var h='<table><tr><th>Recruiter</th><th>Req URL</th><th>Job Family</th><th>Hiring Manager</th></tr>';
+  reqs.forEach(function(r){var url=r.reqUrl?'<a href="'+r.reqUrl+'" target="_blank" style="color:#63b3ed;">Link</a>':'—';h+='<tr class="'+cls+'"><td>'+r.recruiter+'</td><td>'+url+'</td><td>'+r.jobFamily+'</td><td>'+r.hm+'</td></tr>';});
+  return h+'</table>';
+}
+</script>
+
+<script>
+// ========== DEFECTS FILE (shared across tabs 2-4) ==========
+var defectsData = null;
+
+document.getElementById('defectsFile').addEventListener('change', function(e) {
+  var file=e.target.files[0]; if(!file)return;
+  document.getElementById('defectsFileName').textContent=file.name;
+  document.getElementById('defectsClearBtn').style.display='inline-flex';
+  var reader=new FileReader();
+  reader.onload=function(evt){
+    var data=new Uint8Array(evt.target.result);
+    var wb=XLSX.read(data,{type:'array'});
+    var sheet=wb.Sheets[wb.SheetNames[0]];
+    var raw=XLSX.utils.sheet_to_json(sheet,{header:1});
+    raw.shift();
+    var headers=raw.shift();
+    defectsData=[];
+    for(var i=0;i<raw.length;i++){var obj={};for(var j=0;j<headers.length;j++){if(headers[j])obj[headers[j]]=raw[i][j];}defectsData.push(obj);}
+    runDefects();
+    runMissingPids();
+    runPendingApproval();
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function clearDefectsFile(){
+  document.getElementById('defectsFile').value='';document.getElementById('defectsFileName').textContent='No file selected';
+  document.getElementById('defectsClearBtn').style.display='none';defectsData=null;
+  document.getElementById('defectsResults').style.display='none';document.getElementById('pidsResults').style.display='none';document.getElementById('pendingResults').style.display='none';
+}
+
+// ========== TAB 2: YARDSTICK REQ DEFECTS ==========
+function runDefects() {
+  if(!defectsData||!defectsData.length)return;
+  var recruiterCol=findCol(defectsData[0],['req recruiter','recruiter name']);
+  var sourcerCol=findCol(defectsData[0],['req sourcer','sourcer name']);
+  var defectCol=findCol(defectsData[0],['defect']);
+  var reqUrlCol=findCol(defectsData[0],['req hire url','req url']);
+  if(!recruiterCol||!defectCol){document.getElementById('defectsOutput').innerHTML='<p class="info">Could not find Recruiter or Defect columns.</p>';document.getElementById('defectsResults').style.display='block';return;}
+
+  // Filter rows that have defects
+  var withDefects=defectsData.filter(function(r){return r[defectCol]&&r[defectCol].toString().trim()!=='';});
+
+  // Group by recruiter, then by defect type, tracking sourcers
+  var grouped={};
+  withDefects.forEach(function(r){
+    var rec=(r[recruiterCol]||'').toString().trim();
+    var defect=(r[defectCol]||'').toString().trim();
+    var sourcer=sourcerCol?(r[sourcerCol]||'').toString().trim():'';
+    if(!rec)return;
+    if(!grouped[rec])grouped[rec]={};
+    if(!grouped[rec][defect])grouped[rec][defect]={count:0,sourcers:{}};
+    grouped[rec][defect].count++;
+    if(sourcer){if(!grouped[rec][defect].sourcers[sourcer])grouped[rec][defect].sourcers[sourcer]=0;grouped[rec][defect].sourcers[sourcer]++;}
+  });
+
+  // Get all defect types
+  var defectTypes={};
+  withDefects.forEach(function(r){var d=(r[defectCol]||'').toString().trim();if(d)defectTypes[d]=true;});
+  var types=Object.keys(defectTypes).sort();
+
+  // Build table
+  var html='<div class="summary-card"><div class="summary-item" style="background:rgba(245,101,101,0.15);border:1px solid rgba(245,101,101,0.3);"><div class="num" style="color:#f56565;">'+withDefects.length+'</div><div class="label" style="color:#f56565;">Total Defects</div></div></div>';
+  html+='<table><tr><th>Recruiter</th>';
+  types.forEach(function(t){html+='<th>'+t+'</th>';});
+  html+='<th>Grand Total</th></tr>';
+
+  var recruiters=Object.keys(grouped).sort();
+  var grandTotals={};types.forEach(function(t){grandTotals[t]=0;});var grandTotal=0;
+
+  recruiters.forEach(function(rec){
+    var total=0;
+    // Main recruiter row
+    html+='<tr style="font-weight:700;"><td>'+rec+'</td>';
+    types.forEach(function(t){var c=grouped[rec][t]?grouped[rec][t].count:0;html+='<td>'+(c||'')+'</td>';total+=c;grandTotals[t]+=c;});
+    html+='<td>'+total+'</td></tr>';
+    grandTotal+=total;
+
+    // Sourcer sub-rows
+    var allSourcers={};
+    types.forEach(function(t){if(grouped[rec][t]){Object.keys(grouped[rec][t].sourcers).forEach(function(s){if(!allSourcers[s])allSourcers[s]={};allSourcers[s][t]=grouped[rec][t].sourcers[s];});}});
+    Object.keys(allSourcers).sort().forEach(function(s){
+      html+='<tr style="color:var(--info-text);"><td style="padding-left:30px;">'+s+'</td>';
+      types.forEach(function(t){html+='<td>'+(allSourcers[s][t]||'')+'</td>';});
+      var st=0;types.forEach(function(t){st+=(allSourcers[s][t]||0);});
+      html+='<td>'+st+'</td></tr>';
+    });
+  });
+
+  html+='<tr style="font-weight:700;background:rgba(255,153,0,0.1);"><td>Grand Total</td>';
+  types.forEach(function(t){html+='<td>'+grandTotals[t]+'</td>';});
+  html+='<td>'+grandTotal+'</td></tr></table>';
+
+  document.getElementById('defectsOutput').innerHTML=html;
+  document.getElementById('defectsResults').style.display='block';
+}
+
+// ========== TAB 3: MISSING PIDS ==========
+function runMissingPids() {
+  if(!defectsData||!defectsData.length)return;
+  var recruiterCol=findCol(defectsData[0],['req recruiter','recruiter name']);
+  var jobStateCol=findCol(defectsData[0],['job state','job sta']);
+  var reqUrlCol=findCol(defectsData[0],['req hire url','req url']);
+  var hmCol=findCol(defectsData[0],['hiring manager']);
+
+  // Find PID column - look for columns with "pid" in the name
+  var pidCol=findCol(defectsData[0],['pid']);
+
+  if(!recruiterCol){document.getElementById('pidsOutput').innerHTML='<p class="info">Could not find Recruiter column.</p>';document.getElementById('pidsResults').style.display='block';return;}
+
+  // Filter: OPEN state, missing PID (empty or "No")
+  var missing=defectsData.filter(function(r){
+    var state=jobStateCol?(r[jobStateCol]||'').toString().trim().toUpperCase():'';
+    if(state!=='OPEN')return false;
+    if(!pidCol)return false;
+    var pid=(r[pidCol]||'').toString().trim().toLowerCase();
+    return pid===''||pid==='no'||pid==='n/a'||pid==='missing';
+  });
+
+  var counts={};
+  missing.forEach(function(r){var rec=(r[recruiterCol]||'').toString().trim();if(!rec)return;if(!counts[rec])counts[rec]=0;counts[rec]++;});
+
+  var html='<div class="summary-card"><div class="summary-item" style="background:rgba(237,187,52,0.15);border:1px solid rgba(237,187,52,0.3);"><div class="num" style="color:#edbb34;">'+missing.length+'</div><div class="label" style="color:#edbb34;">Reqs Missing PIDs</div></div></div>';
+  html+='<table><tr><th>Recruiter</th><th>Count</th></tr>';
+  Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];}).forEach(function(name){
+    html+='<tr><td>'+name+'</td><td>'+counts[name]+'</td></tr>';
+  });
+  html+='<tr style="font-weight:700;background:rgba(255,153,0,0.1);"><td>Grand Total</td><td>'+missing.length+'</td></tr></table>';
+
+  document.getElementById('pidsOutput').innerHTML=html;
+  document.getElementById('pidsResults').style.display='block';
+  document.getElementById('pidsUploadReminder').style.display='none';
+}
+
+// ========== TAB 4: PENDING APPROVAL ==========
+function runPendingApproval() {
+  if(!defectsData||!defectsData.length)return;
+  var recruiterCol=findCol(defectsData[0],['req recruiter','recruiter name']);
+  var jobStateCol=findCol(defectsData[0],['job state','job sta']);
+  var daysCol=findCol(defectsData[0],['days open','days']);
+  var reqUrlCol=findCol(defectsData[0],['req hire url','req url']);
+  var hmCol=findCol(defectsData[0],['hiring manager']);
+
+  if(!recruiterCol){document.getElementById('pendingOutput').innerHTML='<p class="info">Could not find Recruiter column.</p>';document.getElementById('pendingResults').style.display='block';return;}
+
+  var pending=defectsData.filter(function(r){
+    var state=jobStateCol?(r[jobStateCol]||'').toString().trim().toUpperCase():'';
+    return state==='PENDING APPROVAL'||state==='PENDING_APPROVAL';
+  });
+
+  var buckets = [
+    { label: 'Less than 30 days', min: 0, max: 29, color: '#48bb78', reqs: [] },
+    { label: '30 - 60 days', min: 30, max: 60, color: '#edbb34', reqs: [] },
+    { label: '60 - 90 days', min: 61, max: 90, color: '#ff9900', reqs: [] },
+    { label: 'More than 90 days', min: 91, max: 99999, color: '#f56565', reqs: [] }
+  ];
+
+  var countsByRecruiter = {};
+
+  pending.forEach(function(r) {
+    var rec = (r[recruiterCol] || '').toString().trim();
+    var days = daysCol ? Math.floor(Number(r[daysCol]) || 0) : 0;
+    if (!rec) return;
+
+    var entry = { recruiter: rec, days: days, reqUrl: reqUrlCol ? (r[reqUrlCol] || '') : '', hm: hmCol ? (r[hmCol] || '') : '' };
+
+    for (var b = 0; b < buckets.length; b++) {
+      if (days >= buckets[b].min && days <= buckets[b].max) { buckets[b].reqs.push(entry); break; }
+    }
+
+    if (!countsByRecruiter[rec]) countsByRecruiter[rec] = { under30: 0, d30to60: 0, d60to90: 0, over90: 0, total: 0 };
+    if (days < 30) countsByRecruiter[rec].under30++;
+    else if (days <= 60) countsByRecruiter[rec].d30to60++;
+    else if (days <= 90) countsByRecruiter[rec].d60to90++;
+    else countsByRecruiter[rec].over90++;
+    countsByRecruiter[rec].total++;
+  });
+
+  // Summary cards
+  var html = '<div class="summary-card">';
+  buckets.forEach(function(b) {
+    html += '<div class="summary-item" style="background:' + b.color + '22;border:1px solid ' + b.color + '55;"><div class="num" style="color:' + b.color + ';">' + b.reqs.length + '</div><div class="label" style="color:' + b.color + ';">' + b.label + '</div></div>';
+  });
+  html += '</div>';
+
+  // Summary table by recruiter
+  html += '<table><tr><th>Recruiter</th><th>&lt; 30 days</th><th>30-60 days</th><th>60-90 days</th><th>&gt; 90 days</th><th>Total</th></tr>';
+  Object.keys(countsByRecruiter).sort().forEach(function(rec) {
+    var c = countsByRecruiter[rec];
+    html += '<tr><td>' + rec + '</td><td>' + (c.under30 || '') + '</td><td>' + (c.d30to60 || '') + '</td><td>' + (c.d60to90 || '') + '</td><td style="' + (c.over90 > 0 ? 'color:#f56565;font-weight:700;' : '') + '">' + (c.over90 || '') + '</td><td>' + c.total + '</td></tr>';
+  });
+  var gt = { u: 0, a: 0, b: 0, c: 0 };
+  Object.keys(countsByRecruiter).forEach(function(r) { var c = countsByRecruiter[r]; gt.u += c.under30; gt.a += c.d30to60; gt.b += c.d60to90; gt.c += c.over90; });
+  html += '<tr style="font-weight:700;background:rgba(255,153,0,0.1);"><td>Grand Total</td><td>' + gt.u + '</td><td>' + gt.a + '</td><td>' + gt.b + '</td><td>' + gt.c + '</td><td>' + pending.length + '</td></tr></table>';
+
+  // Detail sections for 30+ days
+  for (var b = 1; b < buckets.length; b++) {
+    if (buckets[b].reqs.length > 0) {
+      html += '<h3 style="color:' + buckets[b].color + ';margin-top:20px;margin-bottom:10px;"><i class="fas fa-exclamation-triangle"></i> ' + buckets[b].label + ' (' + buckets[b].reqs.length + ')</h3>';
+      html += '<table><tr><th>Recruiter</th><th>Days Pending</th><th>Req URL</th><th>Hiring Manager</th></tr>';
+      buckets[b].reqs.sort(function(a, b) { return b.days - a.days; }).forEach(function(r) {
+        var url = r.reqUrl ? '<a href="' + r.reqUrl + '" target="_blank" style="color:#63b3ed;">Link</a>' : '—';
+        html += '<tr><td>' + r.recruiter + '</td><td style="color:' + buckets[b].color + ';font-weight:700;">' + r.days + '</td><td>' + url + '</td><td>' + r.hm + '</td></tr>';
+      });
+      html += '</table>';
+    }
+  }
+
+  document.getElementById('pendingOutput').innerHTML = html;
+  document.getElementById('pendingResults').style.display = 'block';
+  document.getElementById('pendingUploadReminder').style.display = 'none';
+}
+</script>
+</body>
+</html>
