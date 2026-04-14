@@ -71,9 +71,13 @@
     .row-yellow { background: rgba(237,187,52,0.08) !important; }
     .row-red { background: rgba(245,101,101,0.08) !important; }
     .summary-card { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
-    .summary-item { flex: 1; min-width: 120px; padding: 16px; border-radius: 8px; text-align: center; }
+    .summary-item { flex: 1; min-width: 120px; padding: 16px; border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s; }
+    .summary-item:hover { transform: translateY(-2px); opacity: 0.9; }
+    .summary-item.active { outline: 3px solid #ff9900; outline-offset: 2px; }
     .summary-item .num { font-size: 28px; font-weight: 700; }
     .summary-item .label { font-size: 12px; margin-top: 4px; }
+    .filterable-section { transition: all 0.3s; }
+    .filterable-section.hidden { display: none; }
     .name-tag { display: inline-flex; align-items: center; gap: 4px; background: var(--input-bg); border: 1px solid var(--input-border); padding: 4px 10px; border-radius: 16px; font-size: 12px; margin: 2px; }
     .name-tag .remove { cursor: pointer; color: #f56565; font-weight: 700; }
     .copy-btn { font-size: 13px; padding: 8px 16px; background: var(--secondary-btn-bg); color: var(--secondary-btn-text); border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
@@ -189,6 +193,31 @@ function toggleTheme() {
 }
 if (localStorage.getItem('reqTheme')==='light') { document.body.classList.add('light'); document.getElementById('themeIcon').className='fas fa-moon'; document.getElementById('themeLabel').textContent='Dark Mode'; }
 
+// ========== CARD FILTER TOGGLE ==========
+function toggleFilter(containerId, sectionClass) {
+  var container = document.getElementById(containerId);
+  if (!container) return;
+  var sections = container.querySelectorAll('.filterable-section');
+  var cards = container.querySelectorAll('.summary-item');
+  var clickedCard = event.currentTarget;
+  var isActive = clickedCard.classList.contains('active');
+
+  // Reset all cards and sections
+  cards.forEach(function(c) { c.classList.remove('active'); });
+
+  if (isActive) {
+    // Show all sections
+    sections.forEach(function(s) { s.classList.remove('hidden'); });
+  } else {
+    // Hide all sections, show only the clicked one
+    clickedCard.classList.add('active');
+    sections.forEach(function(s) {
+      if (s.classList.contains(sectionClass)) s.classList.remove('hidden');
+      else s.classList.add('hidden');
+    });
+  }
+}
+
 // ========== TABS ==========
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
@@ -252,6 +281,8 @@ function runAudit(rows) {
   var reqUrlCol=findCol(rows[0],['req hire url','req url']);
   var jobFamilyCol=findCol(rows[0],['job family']);
   var hmCol=findCol(rows[0],['hiring manager']);
+  var hireStateCol=findCol(rows[0],['hire state','job state','job sta']);
+  var jobLevelCol=findCol(rows[0],['job level','job lev']);
   if(!recruiterCol){document.getElementById('auditOutput').innerHTML='<p class="status" style="background:rgba(245,101,101,0.15);color:#f56565;">Could not find Recruiter column.</p>';document.getElementById('auditResults').style.display='block';return;}
 
   var filtered=rows.filter(function(r){if(!hireTypeCol)return true;return(r[hireTypeCol]||'').toString().toLowerCase().indexOf('campus')===-1;});
@@ -260,35 +291,35 @@ function runAudit(rows) {
     var rec=(r[recruiterCol]||'').toString().trim();if(!rec)return;
     if(!counts[rec])counts[rec]=0;counts[rec]++;
     var tier=getTier(rec);
-    var entry={recruiter:rec,reqUrl:reqUrlCol?(r[reqUrlCol]||''):'',jobFamily:jobFamilyCol?(r[jobFamilyCol]||''):'',hm:hmCol?(r[hmCol]||''):''};
+    var hireState=hireStateCol?(r[hireStateCol]||'').toString().trim():'';
+    var jobLevel=jobLevelCol?(r[jobLevelCol]||'').toString().trim():'';
+    var entry={recruiter:rec,reqUrl:reqUrlCol?(r[reqUrlCol]||''):'',jobFamily:jobFamilyCol?(r[jobFamilyCol]||''):'',hm:hmCol?(r[hmCol]||''):'',hireState:hireState,jobLevel:jobLevel};
     if(tier==='green')green.push(entry);else if(tier==='yellow')yellow.push(entry);else red.push(entry);
   });
 
-  var html='<div class="summary-card">';
-  html+='<div class="summary-item" style="background:rgba(72,187,120,0.15);border:1px solid rgba(72,187,120,0.3);"><div class="num" style="color:#48bb78;">'+green.length+'</div><div class="label" style="color:#48bb78;">Approved</div></div>';
-  html+='<div class="summary-item" style="background:rgba(237,187,52,0.15);border:1px solid rgba(237,187,52,0.3);"><div class="num" style="color:#edbb34;">'+yellow.length+'</div><div class="label" style="color:#edbb34;">Review</div></div>';
-  html+='<div class="summary-item" style="background:rgba(245,101,101,0.15);border:1px solid rgba(245,101,101,0.3);"><div class="num" style="color:#f56565;">'+red.length+'</div><div class="label" style="color:#f56565;">Misassigned</div></div>';
+  var html='<div class="summary-card" id="auditCards">';
+  html+='<div class="summary-item" style="background:rgba(72,187,120,0.15);border:1px solid rgba(72,187,120,0.3);" onclick="toggleFilter(\'auditOutput\',\'section-green\')"><div class="num" style="color:#48bb78;">'+green.length+'</div><div class="label" style="color:#48bb78;">Approved</div></div>';
+  html+='<div class="summary-item" style="background:rgba(237,187,52,0.15);border:1px solid rgba(237,187,52,0.3);" onclick="toggleFilter(\'auditOutput\',\'section-yellow\')"><div class="num" style="color:#edbb34;">'+yellow.length+'</div><div class="label" style="color:#edbb34;">Review</div></div>';
+  html+='<div class="summary-item" style="background:rgba(245,101,101,0.15);border:1px solid rgba(245,101,101,0.3);" onclick="toggleFilter(\'auditOutput\',\'section-red\')"><div class="num" style="color:#f56565;">'+red.length+'</div><div class="label" style="color:#f56565;">Misassigned</div></div>';
   html+='<div class="summary-item" style="background:rgba(99,179,237,0.15);border:1px solid rgba(99,179,237,0.3);"><div class="num" style="color:#63b3ed;">'+filtered.length+'</div><div class="label" style="color:#63b3ed;">Total</div></div>';
   html+='</div>';
   document.getElementById('auditSummary').innerHTML=html;
 
-  var out='<table><tr><th>Recruiter</th><th>Count</th><th>Status</th></tr>';
-  Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];}).forEach(function(name){
-    var tier=getTier(name);var cls=tier==='green'?'tag-green':tier==='yellow'?'tag-yellow':'tag-red';
-    var lbl=tier==='green'?'Approved':tier==='yellow'?'Review':'Misassigned';
-    var rc=tier==='green'?'row-green':tier==='yellow'?'row-yellow':'row-red';
-    out+='<tr class="'+rc+'"><td>'+name+'</td><td>'+counts[name]+'</td><td><span class="tag '+cls+'">'+lbl+'</span></td></tr>';
-  });
-  out+='</table>';
-
-  if(yellow.length>0){out+='<h3 style="color:#edbb34;margin-top:20px;">Needs Review ('+yellow.length+')</h3>';out+=detailTable(yellow,'row-yellow');}
-  if(red.length>0){out+='<h3 style="color:#f56565;margin-top:20px;">Misassigned ('+red.length+')</h3>';out+=detailTable(red,'row-red');}
+  var out='';
+  if(yellow.length>0){out+='<div class="filterable-section section-yellow"><h3 style="color:#edbb34;margin-top:20px;">Needs Review ('+yellow.length+')</h3>'+auditDetailTable(yellow,'row-yellow')+'</div>';}
+  if(red.length>0){out+='<div class="filterable-section section-red"><h3 style="color:#f56565;margin-top:20px;">Misassigned ('+red.length+')</h3>'+auditDetailTable(red,'row-red')+'</div>';}
   document.getElementById('auditOutput').innerHTML=out;
   document.getElementById('auditResults').style.display='block';
 }
-function detailTable(reqs,cls){
-  var h='<table><tr><th>Recruiter</th><th>Req URL</th><th>Job Family</th><th>Hiring Manager</th></tr>';
-  reqs.forEach(function(r){var url=r.reqUrl?'<a href="'+r.reqUrl+'" target="_blank" style="color:#63b3ed;">Link</a>':'—';h+='<tr class="'+cls+'"><td>'+r.recruiter+'</td><td>'+url+'</td><td>'+r.jobFamily+'</td><td>'+r.hm+'</td></tr>';});
+function auditDetailTable(reqs,cls){
+  var h='<table><tr><th>Recruiter</th><th>Req URL</th><th>Job Family</th><th>Hiring Manager</th><th>Notes</th></tr>';
+  reqs.forEach(function(r){
+    var url=r.reqUrl?'<a href="'+r.reqUrl+'" target="_blank" style="color:#63b3ed;">Link</a>':'—';
+    var notes='';
+    if(r.hireState&&r.hireState.toLowerCase()==='pooling') notes+='<span class="tag" style="background:rgba(99,179,237,0.2);color:#63b3ed;">Pooling</span> ';
+    if(r.jobLevel&&r.jobLevel.toString().indexOf('7')!==-1) notes+='<span class="tag" style="background:rgba(159,122,234,0.2);color:#b794f4;">L7</span> ';
+    h+='<tr class="'+cls+'"><td>'+r.recruiter+'</td><td>'+url+'</td><td>'+r.jobFamily+'</td><td>'+r.hm+'</td><td>'+notes+'</td></tr>';
+  });
   return h+'</table>';
 }
 </script>
@@ -473,12 +504,13 @@ function runPendingApproval() {
 
   // Summary cards
   var html = '<div class="summary-card">';
-  buckets.forEach(function(b) {
-    html += '<div class="summary-item" style="background:' + b.color + '22;border:1px solid ' + b.color + '55;"><div class="num" style="color:' + b.color + ';">' + b.reqs.length + '</div><div class="label" style="color:' + b.color + ';">' + b.label + '</div></div>';
+  buckets.forEach(function(b, idx) {
+    html += '<div class="summary-item" style="background:' + b.color + '22;border:1px solid ' + b.color + '55;" onclick="toggleFilter(\'pendingOutput\',\'section-bucket' + idx + '\')"><div class="num" style="color:' + b.color + ';">' + b.reqs.length + '</div><div class="label" style="color:' + b.color + ';">' + b.label + '</div></div>';
   });
   html += '</div>';
 
   // Summary table by recruiter
+  html += '<div class="filterable-section section-bucket0 section-bucket1 section-bucket2 section-bucket3">';
   html += '<table><tr><th>Recruiter</th><th>&lt; 30 days</th><th>30-60 days</th><th>60-90 days</th><th>&gt; 90 days</th><th>Total</th></tr>';
   Object.keys(countsByRecruiter).sort().forEach(function(rec) {
     var c = countsByRecruiter[rec];
@@ -486,18 +518,19 @@ function runPendingApproval() {
   });
   var gt = { u: 0, a: 0, b: 0, c: 0 };
   Object.keys(countsByRecruiter).forEach(function(r) { var c = countsByRecruiter[r]; gt.u += c.under30; gt.a += c.d30to60; gt.b += c.d60to90; gt.c += c.over90; });
-  html += '<tr style="font-weight:700;background:rgba(255,153,0,0.1);"><td>Grand Total</td><td>' + gt.u + '</td><td>' + gt.a + '</td><td>' + gt.b + '</td><td>' + gt.c + '</td><td>' + pending.length + '</td></tr></table>';
+  html += '<tr style="font-weight:700;background:rgba(255,153,0,0.1);"><td>Grand Total</td><td>' + gt.u + '</td><td>' + gt.a + '</td><td>' + gt.b + '</td><td>' + gt.c + '</td><td>' + pending.length + '</td></tr></table></div>';
 
-  // Detail sections for 30+ days
-  for (var b = 1; b < buckets.length; b++) {
+  // Detail sections for each bucket
+  for (var b = 0; b < buckets.length; b++) {
     if (buckets[b].reqs.length > 0) {
+      html += '<div class="filterable-section section-bucket' + b + '">';
       html += '<h3 style="color:' + buckets[b].color + ';margin-top:20px;margin-bottom:10px;"><i class="fas fa-exclamation-triangle"></i> ' + buckets[b].label + ' (' + buckets[b].reqs.length + ')</h3>';
       html += '<table><tr><th>Recruiter</th><th>Days Pending</th><th>Req URL</th><th>Hiring Manager</th></tr>';
-      buckets[b].reqs.sort(function(a, b) { return b.days - a.days; }).forEach(function(r) {
+      buckets[b].reqs.sort(function(a, bb) { return bb.days - a.days; }).forEach(function(r) {
         var url = r.reqUrl ? '<a href="' + r.reqUrl + '" target="_blank" style="color:#63b3ed;">Link</a>' : '—';
         html += '<tr><td>' + r.recruiter + '</td><td style="color:' + buckets[b].color + ';font-weight:700;">' + r.days + '</td><td>' + url + '</td><td>' + r.hm + '</td></tr>';
       });
-      html += '</table>';
+      html += '</table></div>';
     }
   }
 
