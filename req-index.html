@@ -901,16 +901,25 @@ function copyFullReport() {
   var rosterHtml = buildTableHtml(document.getElementById('rosterDetailTable'));
   if (rosterHtml) sections.push({ title: 'Roster Adoption', html: rosterHtml });
 
-  // Layout in two-column grid
+  // Layout in two-column grid - pair short with long tables
+  // Row 1: Misassigned Reqs | Missing PIDs
+  // Row 2: Req Defects | Pending Approval
+  // Row 3: Roster Adoption (full width, or paired if even)
+  var orderedSections = [];
+  var sectionMap = {};
+  sections.forEach(function(s) { sectionMap[s.title] = s; });
+  var order = ['Misassigned Reqs','Missing PIDs','Req Defects','Pending Approval','Roster Adoption'];
+  order.forEach(function(t) { if (sectionMap[t]) orderedSections.push(sectionMap[t]); });
+
   html += '<table style="border:none;border-collapse:collapse;width:100%;"><tr>';
-  for (var i = 0; i < sections.length; i++) {
+  for (var i = 0; i < orderedSections.length; i++) {
     if (i > 0 && i % 2 === 0) html += '</tr><tr>';
-    html += '<td style="vertical-align:top;padding:8px 16px 8px 0;border:none;">';
-    html += '<h3 style="color:#ff9900;font-size:13px;margin:0 0 6px 0;">' + sections[i].title + '</h3>';
-    html += sections[i].html;
+    html += '<td style="vertical-align:top;padding:4px 12px 4px 0;border:none;">';
+    html += '<h3 style="color:#ff9900;font-size:12px;margin:0 0 4px 0;">' + orderedSections[i].title + '</h3>';
+    html += orderedSections[i].html;
     html += '</td>';
   }
-  if (sections.length % 2 === 1) html += '<td style="border:none;"></td>';
+  if (orderedSections.length % 2 === 1) html += '<td style="border:none;"></td>';
   html += '</tr></table>';
 
   html += '</div>';
