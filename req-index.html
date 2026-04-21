@@ -97,6 +97,10 @@
     <p class="subtitle">Automate your weekly req defect reporting and assignment audits</p>
   </div>
 
+  <div style="text-align:center;margin-bottom:16px;">
+    <button onclick="copyFullReport()" style="background:#ff9900;color:#111;font-weight:700;padding:12px 28px;font-size:15px;border-radius:8px;"><i class="fas fa-clipboard-list"></i> Copy Full Report</button>
+  </div>
+
   <div class="tab-bar">
     <div class="tab active" onclick="switchTab('audit')"><i class="fas fa-user-check"></i>AWS Science Req Audit</div>
     <div class="tab" onclick="switchTab('defects')"><i class="fas fa-bug"></i>Req Defects</div>
@@ -330,8 +334,8 @@ function runAudit(rows) {
 
   var html='<div class="summary-card" id="auditCards">';
   html+='<div class="summary-item" style="background:rgba(72,187,120,0.15);border:1px solid rgba(72,187,120,0.3);cursor:default;"><div class="num" style="color:#48bb78;">'+green.length+'</div><div class="label" style="color:#48bb78;">Approved</div></div>';
-  html+='<div class="summary-item" style="background:rgba(237,187,52,0.15);border:1px solid rgba(237,187,52,0.3);" onclick="toggleFilter(\'auditOutput\',\'section-yellow\')"><div class="num" style="color:#edbb34;">'+yellow.length+'</div><div class="label" style="color:#edbb34;">Review</div></div>';
-  html+='<div class="summary-item" style="background:rgba(245,101,101,0.15);border:1px solid rgba(245,101,101,0.3);" onclick="toggleFilter(\'auditOutput\',\'section-red\')"><div class="num" style="color:#f56565;">'+red.length+'</div><div class="label" style="color:#f56565;">Misassigned</div></div>';
+  html+='<div class="summary-item" style="background:rgba(237,187,52,0.15);border:1px solid rgba(237,187,52,0.3);" onclick="toggleAuditFilter(\'section-yellow\',this)"><div class="num" style="color:#edbb34;">'+yellow.length+'</div><div class="label" style="color:#edbb34;">Review</div></div>';
+  html+='<div class="summary-item" style="background:rgba(245,101,101,0.15);border:1px solid rgba(245,101,101,0.3);" onclick="toggleAuditFilter(\'section-red\',this)"><div class="num" style="color:#f56565;">'+red.length+'</div><div class="label" style="color:#f56565;">Misassigned</div></div>';
   html+='<div class="summary-item" style="background:rgba(99,179,237,0.15);border:1px solid rgba(99,179,237,0.3);"><div class="num" style="color:#63b3ed;">'+filtered.length+'</div><div class="label" style="color:#63b3ed;">Total</div></div>';
   html+='</div>';
   document.getElementById('auditSummary').innerHTML=html;
@@ -358,6 +362,29 @@ function auditDetailTable(reqs,cls){
     h+='<tr class="'+cls+'"><td>'+r.recruiter+'</td><td>'+url+'</td><td>'+r.jobFamily+'</td><td>'+r.hm+'</td><td>'+status+'</td></tr>';
   });
   return h+'</table>';
+}
+
+function toggleAuditFilter(sectionClass, clickedCard) {
+  var container = document.getElementById('auditOutput');
+  if (!container) return;
+  var sections = container.querySelectorAll('.filterable-section');
+  var cards = document.querySelectorAll('#auditCards .summary-item');
+  var isActive = clickedCard.classList.contains('active');
+
+  // Reset all cards
+  cards.forEach(function(c) { c.classList.remove('active'); });
+
+  if (isActive) {
+    // Show all sections
+    sections.forEach(function(s) { s.classList.remove('hidden'); });
+  } else {
+    // Hide all, show only clicked
+    clickedCard.classList.add('active');
+    sections.forEach(function(s) {
+      if (s.classList.contains(sectionClass)) s.classList.remove('hidden');
+      else s.classList.add('hidden');
+    });
+  }
 }
 </script>
 
@@ -802,6 +829,62 @@ function copyTabFormatted(containerId) {
   });
   html += '</div>';
   // Use document.execCommand fallback for file:// URLs
+  var temp = document.createElement('div');
+  temp.innerHTML = html;
+  temp.style.position = 'fixed';
+  temp.style.left = '-9999px';
+  document.body.appendChild(temp);
+  var range = document.createRange();
+  range.selectNodeContents(temp);
+  var sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  document.execCommand('copy');
+  sel.removeAllRanges();
+  document.body.removeChild(temp);
+  showCopiedAlert();
+}
+
+function copyFullReport() {
+  var html = '<div style="font-family:Segoe UI,Arial,sans-serif;font-size:12px;">';
+  var sections = [
+    { id: 'auditOutput', title: 'AWS Science Req Audit' },
+    { id: 'defectsFlatTable', title: 'Req Defects' },
+    { id: 'pidsDetailTable', title: 'Reqs Missing PIDs' },
+    { id: 'pendingSummaryTable', title: 'Reqs Pending Approval' },
+    { id: 'rosterDetailTable', title: 'Roster Adoption' }
+  ];
+
+  sections.forEach(function(section) {
+    var container = document.getElementById(section.id);
+    if (!container) return;
+    var tables = container.querySelectorAll('table');
+    if (!tables.length) return;
+
+    html += '<h3 style="color:#ff9900;font-size:14px;margin:16px 0 8px 0;">' + section.title + '</h3>';
+    tables.forEach(function(table) {
+      html += '<table style="border-collapse:collapse;width:auto;margin-bottom:12px;font-size:12px;">';
+      var rows = table.querySelectorAll('tr');
+      for (var r = 0; r < rows.length; r++) {
+        html += '<tr>';
+        var cells = rows[r].querySelectorAll('th, td');
+        for (var c = 0; c < cells.length; c++) {
+          var tag = cells[c].tagName === 'TH' ? 'th' : 'td';
+          var bg = tag === 'th' ? '#ff9900' : (r % 2 === 0 ? '#ffffff' : '#f9f9f9');
+          var color = tag === 'th' ? '#111' : '#333';
+          var align = tag === 'th' ? 'text-align:center;vertical-align:middle;' : 'vertical-align:middle;';
+          var cellContent = cells[c].innerText.trim();
+          var link = cells[c].querySelector('a');
+          if (link) cellContent = '<a href="' + link.href + '" style="color:#0066cc;">' + link.innerText.trim() + '</a>';
+          html += '<' + tag + ' style="border:1px solid #ccc;padding:4px 8px;background:' + bg + ';color:' + color + ';font-size:11px;white-space:nowrap;' + align + '">' + cellContent + '</' + tag + '>';
+        }
+        html += '</tr>';
+      }
+      html += '</table>';
+    });
+  });
+  html += '</div>';
+
   var temp = document.createElement('div');
   temp.innerHTML = html;
   temp.style.position = 'fixed';
