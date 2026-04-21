@@ -102,6 +102,7 @@
     <div class="tab" onclick="switchTab('defects')"><i class="fas fa-bug"></i>Req Defects</div>
     <div class="tab" onclick="switchTab('pids')"><i class="fas fa-id-badge"></i>Missing PIDs</div>
     <div class="tab" onclick="switchTab('pending')"><i class="fas fa-hourglass-half"></i>Pending Approval</div>
+    <div class="tab" onclick="switchTab('roster')"><i class="fas fa-clipboard-list"></i>Roster Adoption</div>
   </div>
 
   <!-- TAB 1: Assignment Audit -->
@@ -175,6 +176,21 @@
       <div id="pendingOutput"></div>
     </div>
   </div>
+
+  <!-- TAB 5: Roster Adoption -->
+  <div class="tab-content" id="tab-roster">
+    <div class="card">
+      <h2><i class="fas fa-file-upload"></i> Upload Roster Report</h2>
+      <label for="rosterFile" class="file-upload-btn"><i class="fas fa-folder-open"></i> Choose File</label>
+      <span id="rosterFileName" class="file-upload-name">No file selected</span>
+      <button id="rosterClearBtn" class="btn-sm" onclick="clearRosterFile()" style="display:none;margin-left:8px;background:#f56565;color:#fff;"><i class="fas fa-times"></i> Clear</button>
+      <input type="file" id="rosterFile" accept=".xlsx,.xls,.csv" />
+    </div>
+    <div class="card" id="rosterResults" style="display:none;">
+      <h2><i class="fas fa-clipboard-list"></i> Roster Adoption</h2>
+      <div id="rosterOutput"></div>
+    </div>
+  </div>
 </div>
 
 <footer style="text-align:center;padding:30px 20px 20px;color:#4a5568;font-size:12px;">
@@ -223,7 +239,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
   document.querySelectorAll('.tab-content').forEach(function(t){t.classList.remove('active');});
   var tabs = document.querySelectorAll('.tab');
-  var map = {audit:0, defects:1, pids:2, pending:3};
+  var map = {audit:0, defects:1, pids:2, pending:3, roster:4};
   tabs[map[tab]].classList.add('active');
   document.getElementById('tab-'+tab).classList.add('active');
   // Show upload reminder if defects file not loaded
@@ -477,7 +493,20 @@ function runDefects() {
   types.forEach(function(t){html+='<td>'+grandTotals[t]+'</td>';});
   html+='<td>'+grandTotal+'</td></tr></table></div>';
 
-  html+='<div style="display:flex;gap:10px;margin-top:14px;"><button class="copy-btn" onclick="copyTabText(\'defectsOutput\')"><i class="fas fa-copy"></i> Copy as Text</button><button class="copy-btn" onclick="copyTabFormatted(\'defectsOutput\')" style="background:#ff9900;color:#111;font-weight:700;"><i class="fas fa-table"></i> Copy as Formatted Table</button></div>';
+  // Flat detail table - all defects in one table
+  html+='<h3 style="color:#ff9900;margin-top:24px;margin-bottom:10px;"><i class="fas fa-list"></i> All Defects Detail</h3>';
+  html+='<div id="defectsFlatTable">';
+  html+='<table><tr><th>Recruiter</th><th>Sourcer</th><th>Defect Type</th><th>Req Link</th></tr>';
+  withDefects.forEach(function(r){
+    var rec=(r[recruiterCol]||'').toString().trim();
+    var sourcer=sourcerCol?(r[sourcerCol]||'').toString().trim():'';
+    var defect=getDefectDisplayName((r[defectCol]||'').toString().trim());
+    var url=reqUrlCol&&r[reqUrlCol]?'<a href="'+r[reqUrlCol]+'" target="_blank" style="color:#63b3ed;">Link</a>':'—';
+    html+='<tr><td>'+rec+'</td><td>'+sourcer+'</td><td>'+defect+'</td><td>'+url+'</td></tr>';
+  });
+  html+='</table></div>';
+
+  html+='<div style="display:flex;gap:10px;margin-top:14px;"><button class="copy-btn" onclick="copyTabText(\'defectsFlatTable\')"><i class="fas fa-copy"></i> Copy Detail as Text</button><button class="copy-btn" onclick="copyTabFormatted(\'defectsFlatTable\')" style="background:#ff9900;color:#111;font-weight:700;"><i class="fas fa-table"></i> Copy Detail as Formatted Table</button></div>';
 
   document.getElementById('defectsOutput').innerHTML=html;
   document.getElementById('defectsResults').style.display='block';
@@ -630,6 +659,92 @@ function runPendingApproval() {
   document.getElementById('pendingUploadReminder').style.display = 'none';
 }
 
+// ========== TAB 5: ROSTER ADOPTION ==========
+document.getElementById('rosterFile').addEventListener('change', function(e) {
+  var file=e.target.files[0]; if(!file)return;
+  document.getElementById('rosterFileName').textContent=file.name;
+  document.getElementById('rosterClearBtn').style.display='inline-flex';
+  var reader=new FileReader();
+  reader.onload=function(evt){
+    var data=new Uint8Array(evt.target.result);
+    var wb=XLSX.read(data,{type:'array'});
+    var sheet=wb.Sheets[wb.SheetNames[0]];
+    var rows=XLSX.utils.sheet_to_json(sheet);
+    runRosterAdoption(rows);
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function clearRosterFile(){
+  document.getElementById('rosterFile').value='';
+  document.getElementById('rosterFileName').textContent='No file selected';
+  document.getElementById('rosterClearBtn').style.display='none';
+  document.getElementById('rosterResults').style.display='none';
+}
+
+function runRosterAdoption(rows) {
+  if(!rows.length)return;
+  var adoptionCol=findCol(rows[0],['interview roster adoption','roster adoption']);
+  var recruiterCol=findCol(rows[0],['recruiter login']);
+  var hireUrlCol=findCol(rows[0],['hire link','hire url']);
+  var completionCol=findCol(rows[0],['roster completio','roster completion']);
+  var jobIdCol=findCol(rows[0],['job id']);
+
+  if(!adoptionCol){document.getElementById('rosterOutput').innerHTML='<p class="info">Could not find Interview Roster Adoption column.</p>';document.getElementById('rosterResults').style.display='block';return;}
+
+  // Filter for Not Adopted
+  var notAdopted=rows.filter(function(r){
+    var val=(r[adoptionCol]||'').toString().trim().toLowerCase();
+    return val==='not adopted';
+  });
+
+  var adopted=rows.filter(function(r){
+    var val=(r[adoptionCol]||'').toString().trim().toLowerCase();
+    return val==='adopted';
+  });
+
+  // Count by recruiter
+  var counts={};
+  notAdopted.forEach(function(r){
+    var rec=recruiterCol?(r[recruiterCol]||'').toString().trim():'Unknown';
+    if(!rec)rec='Unknown';
+    if(!counts[rec])counts[rec]=0;
+    counts[rec]++;
+  });
+
+  // Summary cards
+  var html='<div class="summary-card">';
+  html+='<div class="summary-item" style="background:rgba(245,101,101,0.15);border:1px solid rgba(245,101,101,0.3);cursor:default;"><div class="num" style="color:#f56565;">'+notAdopted.length+'</div><div class="label" style="color:#f56565;">Not Adopted</div></div>';
+  html+='<div class="summary-item" style="background:rgba(99,179,237,0.15);border:1px solid rgba(99,179,237,0.3);cursor:default;"><div class="num" style="color:#63b3ed;">'+rows.length+'</div><div class="label" style="color:#63b3ed;">Total Reqs</div></div>';
+  html+='</div>';
+
+  // Summary by recruiter
+  html+='<h3 style="color:#ff9900;margin-bottom:10px;"><i class="fas fa-users"></i> Not Adopted by Recruiter</h3>';
+  html+='<table><tr><th>Recruiter</th><th>Count</th></tr>';
+  Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];}).forEach(function(name){
+    html+='<tr><td>'+name+'</td><td>'+counts[name]+'</td></tr>';
+  });
+  html+='<tr style="font-weight:700;background:rgba(255,153,0,0.1);"><td>Grand Total</td><td>'+notAdopted.length+'</td></tr></table>';
+
+  // Detail table
+  html+='<h3 style="color:#ff9900;margin-top:24px;margin-bottom:10px;"><i class="fas fa-list"></i> Not Adopted Details</h3>';
+  html+='<div id="rosterDetailTable">';
+  html+='<table><tr><th>Recruiter</th><th>Job ID</th><th>Completion Status</th><th>Req Link</th></tr>';
+  notAdopted.forEach(function(r){
+    var rec=recruiterCol?(r[recruiterCol]||'').toString().trim():'';
+    var jobId=jobIdCol?(r[jobIdCol]||'').toString().trim():'';
+    var completion=completionCol?(r[completionCol]||'').toString().trim():'';
+    var url=hireUrlCol&&r[hireUrlCol]?'<a href="'+r[hireUrlCol]+'" target="_blank" style="color:#63b3ed;">Link</a>':'—';
+    html+='<tr><td>'+rec+'</td><td>'+jobId+'</td><td>'+completion+'</td><td>'+url+'</td></tr>';
+  });
+  html+='</table></div>';
+
+  html+='<div style="display:flex;gap:10px;margin-top:14px;"><button class="copy-btn" onclick="copyTabText(\'rosterDetailTable\')"><i class="fas fa-copy"></i> Copy as Text</button><button class="copy-btn" onclick="copyTabFormatted(\'rosterDetailTable\')" style="background:#ff9900;color:#111;font-weight:700;"><i class="fas fa-table"></i> Copy as Formatted Table</button></div>';
+
+  document.getElementById('rosterOutput').innerHTML=html;
+  document.getElementById('rosterResults').style.display='block';
+}
+
 // ========== COPY FUNCTIONS ==========
 
 function togglePendingBucket(idx) {
@@ -658,7 +773,7 @@ function copyTabText(containerId) {
     });
     text += '\n';
   });
-  navigator.clipboard.writeText(text);
+  navigator.clipboard.writeText(text).then(function(){ showCopiedAlert(); });
 }
 
 function copyTabFormatted(containerId) {
@@ -666,7 +781,7 @@ function copyTabFormatted(containerId) {
   var tables = container.querySelectorAll('table');
   var html = '<div style="font-family:Segoe UI,Arial,sans-serif;">';
   tables.forEach(function(table) {
-    html += '<table style="border-collapse:collapse;width:100%;margin-bottom:16px;font-size:13px;">';
+    html += '<table style="border-collapse:collapse;width:auto;margin-bottom:16px;font-size:12px;">';
     var rows = table.querySelectorAll('tr');
     for (var r = 0; r < rows.length; r++) {
       html += '<tr>';
@@ -675,10 +790,11 @@ function copyTabFormatted(containerId) {
         var tag = cells[c].tagName === 'TH' ? 'th' : 'td';
         var bg = tag === 'th' ? '#ff9900' : (r % 2 === 0 ? '#ffffff' : '#f9f9f9');
         var color = tag === 'th' ? '#111' : '#333';
+        var align = tag === 'th' ? 'text-align:center;vertical-align:middle;' : 'vertical-align:middle;';
         var cellContent = cells[c].innerText.trim();
         var link = cells[c].querySelector('a');
         if (link) cellContent = '<a href="' + link.href + '" style="color:#0066cc;">' + link.innerText.trim() + '</a>';
-        html += '<' + tag + ' style="border:1px solid #ccc;padding:6px 10px;background:' + bg + ';color:' + color + ';font-size:12px;">' + cellContent + '</' + tag + '>';
+        html += '<' + tag + ' style="border:1px solid #ccc;padding:4px 8px;background:' + bg + ';color:' + color + ';font-size:11px;white-space:nowrap;' + align + '">' + cellContent + '</' + tag + '>';
       }
       html += '</tr>';
     }
@@ -686,7 +802,16 @@ function copyTabFormatted(containerId) {
   });
   html += '</div>';
   var blob = new Blob([html], { type: 'text/html' });
-  navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
+  navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]).then(function(){ showCopiedAlert(); });
+}
+
+function showCopiedAlert() {
+  var alert = document.createElement('div');
+  alert.textContent = '✓ Copied!';
+  alert.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#48bb78;color:#fff;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:700;z-index:9999;transition:opacity 0.3s;';
+  document.body.appendChild(alert);
+  setTimeout(function(){ alert.style.opacity='0'; }, 1500);
+  setTimeout(function(){ alert.remove(); }, 1800);
 }
 </script>
 </body>
