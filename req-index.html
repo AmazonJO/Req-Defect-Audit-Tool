@@ -847,26 +847,18 @@ function copyTabFormatted(containerId) {
 
 function copyFullReport() {
   var html = '<div style="font-family:Segoe UI,Arial,sans-serif;font-size:12px;">';
-  var sections = [
-    { id: 'auditOutput', title: 'AWS Science Req Audit' },
-    { id: 'defectsFlatTable', title: 'Req Defects' },
-    { id: 'pidsDetailTable', title: 'Reqs Missing PIDs' },
-    { id: 'pendingSummaryTable', title: 'Reqs Pending Approval' },
-    { id: 'rosterDetailTable', title: 'Roster Adoption' }
-  ];
 
-  sections.forEach(function(section) {
-    var container = document.getElementById(section.id);
-    if (!container) return;
+  // Helper to build a formatted table HTML from a container
+  function buildTableHtml(container) {
+    if (!container) return '';
     var tables = container.querySelectorAll('table');
-    if (!tables.length) return;
-
-    html += '<h3 style="color:#ff9900;font-size:14px;margin:16px 0 8px 0;">' + section.title + '</h3>';
+    if (!tables.length) return '';
+    var out = '';
     tables.forEach(function(table) {
-      html += '<table style="border-collapse:collapse;width:auto;margin-bottom:12px;font-size:12px;">';
+      out += '<table style="border-collapse:collapse;width:auto;margin-bottom:8px;font-size:12px;">';
       var rows = table.querySelectorAll('tr');
       for (var r = 0; r < rows.length; r++) {
-        html += '<tr>';
+        out += '<tr>';
         var cells = rows[r].querySelectorAll('th, td');
         for (var c = 0; c < cells.length; c++) {
           var tag = cells[c].tagName === 'TH' ? 'th' : 'td';
@@ -876,13 +868,51 @@ function copyFullReport() {
           var cellContent = cells[c].innerText.trim();
           var link = cells[c].querySelector('a');
           if (link) cellContent = '<a href="' + link.href + '" style="color:#0066cc;">' + link.innerText.trim() + '</a>';
-          html += '<' + tag + ' style="border:1px solid #ccc;padding:4px 8px;background:' + bg + ';color:' + color + ';font-size:11px;white-space:nowrap;' + align + '">' + cellContent + '</' + tag + '>';
+          out += '<' + tag + ' style="border:1px solid #ccc;padding:4px 8px;background:' + bg + ';color:' + color + ';font-size:11px;white-space:nowrap;' + align + '">' + cellContent + '</' + tag + '>';
         }
-        html += '</tr>';
+        out += '</tr>';
       }
-      html += '</table>';
+      out += '</table>';
     });
-  });
+    return out;
+  }
+
+  // Build each section
+  var sections = [];
+
+  // Audit - only misassigned
+  var auditRed = document.querySelector('#auditOutput .section-red');
+  var auditHtml = buildTableHtml(auditRed);
+  if (auditHtml) sections.push({ title: 'Misassigned Reqs', html: auditHtml });
+
+  // Defects
+  var defectsHtml = buildTableHtml(document.getElementById('defectsFlatTable'));
+  if (defectsHtml) sections.push({ title: 'Req Defects', html: defectsHtml });
+
+  // Missing PIDs
+  var pidsHtml = buildTableHtml(document.getElementById('pidsDetailTable'));
+  if (pidsHtml) sections.push({ title: 'Missing PIDs', html: pidsHtml });
+
+  // Pending Approval
+  var pendingHtml = buildTableHtml(document.getElementById('pendingSummaryTable'));
+  if (pendingHtml) sections.push({ title: 'Pending Approval', html: pendingHtml });
+
+  // Roster Adoption
+  var rosterHtml = buildTableHtml(document.getElementById('rosterDetailTable'));
+  if (rosterHtml) sections.push({ title: 'Roster Adoption', html: rosterHtml });
+
+  // Layout in two-column grid
+  html += '<table style="border:none;border-collapse:collapse;width:100%;"><tr>';
+  for (var i = 0; i < sections.length; i++) {
+    if (i > 0 && i % 2 === 0) html += '</tr><tr>';
+    html += '<td style="vertical-align:top;padding:8px 16px 8px 0;border:none;">';
+    html += '<h3 style="color:#ff9900;font-size:13px;margin:0 0 6px 0;">' + sections[i].title + '</h3>';
+    html += sections[i].html;
+    html += '</td>';
+  }
+  if (sections.length % 2 === 1) html += '<td style="border:none;"></td>';
+  html += '</tr></table>';
+
   html += '</div>';
 
   var temp = document.createElement('div');
