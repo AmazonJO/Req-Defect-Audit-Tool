@@ -560,6 +560,7 @@ function runMissingPids() {
 
   // Detail table with individual req links
   html+='<h3 style="color:#ff9900;margin-top:24px;margin-bottom:10px;"><i class="fas fa-list"></i> Req Details</h3>';
+  html+='<div id="pidsDetailTable">';
   html+='<table><tr><th>Recruiter</th><th>Hiring Manager</th><th>Req Link</th></tr>';
   missing.forEach(function(r){
     var rec=(r[recruiterCol]||'').toString().trim();
@@ -567,9 +568,9 @@ function runMissingPids() {
     var url=reqUrlCol&&r[reqUrlCol]?'<a href="'+r[reqUrlCol]+'" target="_blank" style="color:#63b3ed;">Link</a>':'—';
     html+='<tr><td>'+rec+'</td><td>'+hm+'</td><td>'+url+'</td></tr>';
   });
-  html+='</table>';
+  html+='</table></div>';
 
-  html+='<div style="display:flex;gap:10px;margin-top:14px;"><button class="copy-btn" onclick="copyTabText(\'pidsOutput\')"><i class="fas fa-copy"></i> Copy as Text</button><button class="copy-btn" onclick="copyTabFormatted(\'pidsOutput\')" style="background:#ff9900;color:#111;font-weight:700;"><i class="fas fa-table"></i> Copy as Formatted Table</button></div>';
+  html+='<div style="display:flex;gap:10px;margin-top:14px;"><button class="copy-btn" onclick="copyTabText(\'pidsDetailTable\')"><i class="fas fa-copy"></i> Copy as Text</button><button class="copy-btn" onclick="copyTabFormatted(\'pidsDetailTable\')" style="background:#ff9900;color:#111;font-weight:700;"><i class="fas fa-table"></i> Copy as Formatted Table</button></div>';
 
   document.getElementById('pidsOutput').innerHTML=html;
   document.getElementById('pidsResults').style.display='block';
@@ -628,7 +629,7 @@ function runPendingApproval() {
   html += '</div>';
 
   // Summary table by recruiter (always visible)
-  html += '<div>';
+  html += '<div id="pendingSummaryTable">';
   html += '<table><tr><th>Recruiter</th><th>&lt; 30 days</th><th>30-60 days</th><th>60-90 days</th><th>&gt; 90 days</th><th>Total</th></tr>';
   Object.keys(countsByRecruiter).sort().forEach(function(rec) {
     var c = countsByRecruiter[rec];
@@ -652,7 +653,7 @@ function runPendingApproval() {
     }
   }
 
-  html += '<div style="display:flex;gap:10px;margin-top:14px;"><button class="copy-btn" onclick="copyTabText(\'pendingOutput\')"><i class="fas fa-copy"></i> Copy as Text</button><button class="copy-btn" onclick="copyTabFormatted(\'pendingOutput\')" style="background:#ff9900;color:#111;font-weight:700;"><i class="fas fa-table"></i> Copy as Formatted Table</button></div>';
+  html += '<div style="display:flex;gap:10px;margin-top:14px;"><button class="copy-btn" onclick="copyTabText(\'pendingSummaryTable\')"><i class="fas fa-copy"></i> Copy as Text</button><button class="copy-btn" onclick="copyTabFormatted(\'pendingSummaryTable\')" style="background:#ff9900;color:#111;font-weight:700;"><i class="fas fa-table"></i> Copy as Formatted Table</button></div>';
 
   document.getElementById('pendingOutput').innerHTML = html;
   document.getElementById('pendingResults').style.display = 'block';
