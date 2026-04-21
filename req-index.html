@@ -98,7 +98,7 @@
   </div>
 
   <div class="tab-bar">
-    <div class="tab active" onclick="switchTab('audit')"><i class="fas fa-user-check"></i>Assignment Audit</div>
+    <div class="tab active" onclick="switchTab('audit')"><i class="fas fa-user-check"></i>AWS Science Req Audit</div>
     <div class="tab" onclick="switchTab('defects')"><i class="fas fa-bug"></i>Req Defects</div>
     <div class="tab" onclick="switchTab('pids')"><i class="fas fa-id-badge"></i>Missing PIDs</div>
     <div class="tab" onclick="switchTab('pending')"><i class="fas fa-hourglass-half"></i>Pending Approval</div>
@@ -244,13 +244,27 @@ function renderTiers() {
     el.innerHTML=html;
   });
 }
-function addName(tier) { var input=document.getElementById(tier+'Input'); var v=input.value.trim(); if(!v)return; tiers[tier].push(v); input.value=''; saveTiers(); renderTiers(); }
-function removeName(tier,idx) { tiers[tier].splice(idx,1); saveTiers(); renderTiers(); }
+var lastAuditRows = null;
+function addName(tier) { var input=document.getElementById(tier+'Input'); var v=input.value.trim(); if(!v)return; tiers[tier].push(v); input.value=''; saveTiers(); renderTiers(); if(lastAuditRows) runAudit(lastAuditRows); }
+function removeName(tier,idx) { tiers[tier].splice(idx,1); saveTiers(); renderTiers(); if(lastAuditRows) runAudit(lastAuditRows); }
 renderTiers();
 function getTier(name) {
   var n=(name||'').trim().toLowerCase();
-  for(var i=0;i<tiers.green.length;i++){if(tiers.green[i].toLowerCase()===n)return'green';}
-  for(var j=0;j<tiers.yellow.length;j++){if(tiers.yellow[j].toLowerCase()===n)return'yellow';}
+  for(var i=0;i<tiers.green.length;i++){
+    var g=tiers.green[i].toLowerCase();
+    if(g===n || n.indexOf(g)!==-1 || g.indexOf(n)!==-1) return'green';
+    // Check if all words in the tier name appear in the spreadsheet name
+    var gWords=g.split(/[\s,]+/).filter(function(w){return w;});
+    var allMatch=gWords.length>0&&gWords.every(function(w){return n.indexOf(w)!==-1;});
+    if(allMatch) return'green';
+  }
+  for(var j=0;j<tiers.yellow.length;j++){
+    var y=tiers.yellow[j].toLowerCase();
+    if(y===n || n.indexOf(y)!==-1 || y.indexOf(n)!==-1) return'yellow';
+    var yWords=y.split(/[\s,]+/).filter(function(w){return w;});
+    var allMatchY=yWords.length>0&&yWords.every(function(w){return n.indexOf(w)!==-1;});
+    if(allMatchY) return'yellow';
+  }
   return'red';
 }
 </script>
@@ -276,6 +290,7 @@ function clearAuditFile(){document.getElementById('auditFile').value='';document
 
 function runAudit(rows) {
   if(!rows.length)return;
+  lastAuditRows = rows;
   var recruiterCol=findCol(rows[0],['req recruiter','recruiter name']);
   var hireTypeCol=findCol(rows[0],['hire type','hire typ']);
   var reqUrlCol=findCol(rows[0],['req hire url','req url']);
@@ -298,7 +313,7 @@ function runAudit(rows) {
   });
 
   var html='<div class="summary-card" id="auditCards">';
-  html+='<div class="summary-item" style="background:rgba(72,187,120,0.15);border:1px solid rgba(72,187,120,0.3);" onclick="toggleFilter(\'auditOutput\',\'section-green\')"><div class="num" style="color:#48bb78;">'+green.length+'</div><div class="label" style="color:#48bb78;">Approved</div></div>';
+  html+='<div class="summary-item" style="background:rgba(72,187,120,0.15);border:1px solid rgba(72,187,120,0.3);cursor:default;"><div class="num" style="color:#48bb78;">'+green.length+'</div><div class="label" style="color:#48bb78;">Approved</div></div>';
   html+='<div class="summary-item" style="background:rgba(237,187,52,0.15);border:1px solid rgba(237,187,52,0.3);" onclick="toggleFilter(\'auditOutput\',\'section-yellow\')"><div class="num" style="color:#edbb34;">'+yellow.length+'</div><div class="label" style="color:#edbb34;">Review</div></div>';
   html+='<div class="summary-item" style="background:rgba(245,101,101,0.15);border:1px solid rgba(245,101,101,0.3);" onclick="toggleFilter(\'auditOutput\',\'section-red\')"><div class="num" style="color:#f56565;">'+red.length+'</div><div class="label" style="color:#f56565;">Misassigned</div></div>';
   html+='<div class="summary-item" style="background:rgba(99,179,237,0.15);border:1px solid rgba(99,179,237,0.3);"><div class="num" style="color:#63b3ed;">'+filtered.length+'</div><div class="label" style="color:#63b3ed;">Total</div></div>';
@@ -313,7 +328,7 @@ function runAudit(rows) {
   document.getElementById('auditResults').style.display='block';
 }
 function auditDetailTable(reqs,cls){
-  var h='<table style="table-layout:auto;"><tr><th style="width:120px;">Recruiter</th><th style="width:50px;">Req</th><th style="width:100px;">Job Family</th><th style="width:120px;">Hiring Manager</th><th style="width:60px;">Status</th><th style="width:80px;">Notes</th></tr>';
+  var h='<table style="table-layout:auto;"><tr><th style="width:120px;">Recruiter</th><th style="width:50px;">Req</th><th style="width:100px;">Job Family</th><th style="width:120px;">Hiring Manager</th><th style="width:60px;">Status</th></tr>';
   reqs.forEach(function(r){
     var url=r.reqUrl?'<a href="'+r.reqUrl+'" target="_blank" style="color:#63b3ed;">Link</a>':'—';
     var status='';
@@ -324,9 +339,7 @@ function auditDetailTable(reqs,cls){
       else if(hs.indexOf('pending')!==-1) status='<span class="tag" style="background:rgba(255,153,0,0.2);color:#ff9900;">Pending</span>';
       else status='<span class="tag" style="background:rgba(255,255,255,0.1);color:var(--text-secondary);">'+r.hireState+'</span>';
     }
-    var notes='';
-    if(r.jobLevel&&r.jobLevel.toString().indexOf('7')!==-1) notes+='<span class="tag" style="background:rgba(159,122,234,0.2);color:#b794f4;">L7</span> ';
-    h+='<tr class="'+cls+'"><td>'+r.recruiter+'</td><td>'+url+'</td><td>'+r.jobFamily+'</td><td>'+r.hm+'</td><td>'+status+'</td><td>'+notes+'</td></tr>';
+    h+='<tr class="'+cls+'"><td>'+r.recruiter+'</td><td>'+url+'</td><td>'+r.jobFamily+'</td><td>'+r.hm+'</td><td>'+status+'</td></tr>';
   });
   return h+'</table>';
 }
@@ -388,29 +401,68 @@ function runDefects() {
     if(sourcer){if(!grouped[rec][defect].sourcers[sourcer])grouped[rec][defect].sourcers[sourcer]=0;grouped[rec][defect].sourcers[sourcer]++;}
   });
 
-  // Get all defect types
-  var defectTypes={};
-  withDefects.forEach(function(r){var d=(r[defectCol]||'').toString().trim();if(d)defectTypes[d]=true;});
-  var types=Object.keys(defectTypes).sort();
+  // Get all defect types and count per type
+  var defectTypeCounts={};
+  withDefects.forEach(function(r){var d=(r[defectCol]||'').toString().trim();if(d){if(!defectTypeCounts[d])defectTypeCounts[d]=0;defectTypeCounts[d]++;}});
+  var types=Object.keys(defectTypeCounts).sort();
 
-  // Build table
-  var html='<div class="summary-card"><div class="summary-item" style="background:rgba(245,101,101,0.15);border:1px solid rgba(245,101,101,0.3);"><div class="num" style="color:#f56565;">'+withDefects.length+'</div><div class="label" style="color:#f56565;">Total Defects</div></div></div>';
-  html+='<table><tr><th>Recruiter</th>';
-  types.forEach(function(t){html+='<th>'+t+'</th>';});
-  html+='<th>Grand Total</th></tr>';
+  // Friendly display names for defect types
+  var defectDisplayNames={
+    'open longer than cycle time':'Time to Fill',
+    'open_longer_than_cycle_time':'Time to Fill',
+    '["open_longer_than_cycle_time"]':'Time to Fill',
+    'undispos_req':'Undispositioned Candidates',
+    'undisp_req':'Undispositioned Candidates',
+    '["undisp_req"]':'Undispositioned Candidates',
+    'undispositioned req':'Undispositioned Candidates'
+  };
+  function getDefectDisplayName(t){var key=t.toLowerCase().trim();return defectDisplayNames[key]||t;}
 
+  // Color palette for defect type cards (distinct from the red Total card)
+  var defectColors=['#ff9900','#63b3ed','#b794f4','#48bb78','#ed64a6','#4fd1c5','#edbb34','#f56565'];
+
+  // Summary cards - one per defect type + total
+  var html='<div class="summary-card">';
+  html+='<div class="summary-item" style="background:rgba(245,101,101,0.15);border:1px solid rgba(245,101,101,0.3);cursor:default;"><div class="num" style="color:#f56565;">'+withDefects.length+'</div><div class="label" style="color:#f56565;">Total Defects</div></div>';
+  types.forEach(function(t,idx){
+    var col=defectColors[idx%defectColors.length];
+    html+='<div class="summary-item" style="background:'+col+'22;border:1px solid '+col+'55;" onclick="toggleDefectBucket('+idx+')"><div class="num" style="color:'+col+';">'+defectTypeCounts[t]+'</div><div class="label" style="color:'+col+';">'+getDefectDisplayName(t)+'</div></div>';
+  });
+  html+='</div>';
+
+  // Collapsible detail sections per defect type
+  types.forEach(function(t,idx){
+    var col=defectColors[idx%defectColors.length];
+    var typeReqs=withDefects.filter(function(r){return(r[defectCol]||'').toString().trim()===t;});
+    html+='<div class="defect-bucket-detail" id="defectBucket'+idx+'" style="display:none;">';
+    html+='<h3 style="color:'+col+';margin-top:20px;margin-bottom:10px;"><i class="fas fa-bug"></i> '+getDefectDisplayName(t)+' ('+typeReqs.length+')</h3>';
+    html+='<table><tr><th>Recruiter</th><th>Sourcer</th><th>Req Link</th></tr>';
+    typeReqs.forEach(function(r){
+      var rec=(r[recruiterCol]||'').toString().trim();
+      var sourcer=sourcerCol?(r[sourcerCol]||'').toString().trim():'';
+      var url=reqUrlCol&&r[reqUrlCol]?'<a href="'+r[reqUrlCol]+'" target="_blank" style="color:#63b3ed;">Link</a>':'—';
+      html+='<tr><td>'+rec+'</td><td>'+sourcer+'</td><td>'+url+'</td></tr>';
+    });
+    html+='</table></div>';
+  });
+
+  // Pivot table (always visible, at bottom)
   var recruiters=Object.keys(grouped).sort();
   var grandTotals={};types.forEach(function(t){grandTotals[t]=0;});var grandTotal=0;
 
+  html+='<h3 style="color:#ff9900;margin-top:24px;margin-bottom:10px;"><i class="fas fa-table"></i> Summary by Recruiter</h3>';
+  html+='<div>';
+  html+='<table><tr><th>Recruiter</th>';
+  types.forEach(function(t){html+='<th>'+getDefectDisplayName(t)+'</th>';});
+  html+='<th>Grand Total</th></tr>';
+
   recruiters.forEach(function(rec){
     var total=0;
-    // Main recruiter row
     html+='<tr style="font-weight:700;"><td>'+rec+'</td>';
     types.forEach(function(t){var c=grouped[rec][t]?grouped[rec][t].count:0;html+='<td>'+(c||'')+'</td>';total+=c;grandTotals[t]+=c;});
     html+='<td>'+total+'</td></tr>';
     grandTotal+=total;
 
-    // Sourcer sub-rows
     var allSourcers={};
     types.forEach(function(t){if(grouped[rec][t]){Object.keys(grouped[rec][t].sourcers).forEach(function(s){if(!allSourcers[s])allSourcers[s]={};allSourcers[s][t]=grouped[rec][t].sourcers[s];});}});
     Object.keys(allSourcers).sort().forEach(function(s){
@@ -423,11 +475,25 @@ function runDefects() {
 
   html+='<tr style="font-weight:700;background:rgba(255,153,0,0.1);"><td>Grand Total</td>';
   types.forEach(function(t){html+='<td>'+grandTotals[t]+'</td>';});
-  html+='<td>'+grandTotal+'</td></tr></table>';
+  html+='<td>'+grandTotal+'</td></tr></table></div>';
+
   html+='<div style="display:flex;gap:10px;margin-top:14px;"><button class="copy-btn" onclick="copyTabText(\'defectsOutput\')"><i class="fas fa-copy"></i> Copy as Text</button><button class="copy-btn" onclick="copyTabFormatted(\'defectsOutput\')" style="background:#ff9900;color:#111;font-weight:700;"><i class="fas fa-table"></i> Copy as Formatted Table</button></div>';
 
   document.getElementById('defectsOutput').innerHTML=html;
   document.getElementById('defectsResults').style.display='block';
+}
+
+function toggleDefectBucket(idx) {
+  var detail = document.getElementById('defectBucket' + idx);
+  var cards = document.querySelectorAll('#defectsOutput .summary-item');
+  if (!detail) return;
+  var isVisible = detail.style.display !== 'none';
+  document.querySelectorAll('.defect-bucket-detail').forEach(function(d) { d.style.display = 'none'; });
+  cards.forEach(function(c) { c.classList.remove('active'); });
+  if (!isVisible) {
+    detail.style.display = 'block';
+    if (cards[idx + 1]) cards[idx + 1].classList.add('active');
+  }
 }
 
 // ========== TAB 3: MISSING PIDS ==========
@@ -456,11 +522,24 @@ function runMissingPids() {
   missing.forEach(function(r){var rec=(r[recruiterCol]||'').toString().trim();if(!rec)return;if(!counts[rec])counts[rec]=0;counts[rec]++;});
 
   var html='<div class="summary-card"><div class="summary-item" style="background:rgba(237,187,52,0.15);border:1px solid rgba(237,187,52,0.3);"><div class="num" style="color:#edbb34;">'+missing.length+'</div><div class="label" style="color:#edbb34;">Reqs Missing PIDs</div></div></div>';
+  html+='<h3 style="color:#edbb34;margin-bottom:10px;"><i class="fas fa-users"></i> Summary by Recruiter</h3>';
   html+='<table><tr><th>Recruiter</th><th>Count</th></tr>';
   Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];}).forEach(function(name){
     html+='<tr><td>'+name+'</td><td>'+counts[name]+'</td></tr>';
   });
   html+='<tr style="font-weight:700;background:rgba(255,153,0,0.1);"><td>Grand Total</td><td>'+missing.length+'</td></tr></table>';
+
+  // Detail table with individual req links
+  html+='<h3 style="color:#ff9900;margin-top:24px;margin-bottom:10px;"><i class="fas fa-list"></i> Req Details</h3>';
+  html+='<table><tr><th>Recruiter</th><th>Hiring Manager</th><th>Req Link</th></tr>';
+  missing.forEach(function(r){
+    var rec=(r[recruiterCol]||'').toString().trim();
+    var hm=hmCol?(r[hmCol]||'').toString().trim():'';
+    var url=reqUrlCol&&r[reqUrlCol]?'<a href="'+r[reqUrlCol]+'" target="_blank" style="color:#63b3ed;">Link</a>':'—';
+    html+='<tr><td>'+rec+'</td><td>'+hm+'</td><td>'+url+'</td></tr>';
+  });
+  html+='</table>';
+
   html+='<div style="display:flex;gap:10px;margin-top:14px;"><button class="copy-btn" onclick="copyTabText(\'pidsOutput\')"><i class="fas fa-copy"></i> Copy as Text</button><button class="copy-btn" onclick="copyTabFormatted(\'pidsOutput\')" style="background:#ff9900;color:#111;font-weight:700;"><i class="fas fa-table"></i> Copy as Formatted Table</button></div>';
 
   document.getElementById('pidsOutput').innerHTML=html;
@@ -515,12 +594,12 @@ function runPendingApproval() {
   // Summary cards
   var html = '<div class="summary-card">';
   buckets.forEach(function(b, idx) {
-    html += '<div class="summary-item" style="background:' + b.color + '22;border:1px solid ' + b.color + '55;" onclick="toggleFilter(\'pendingOutput\',\'section-bucket' + idx + '\')"><div class="num" style="color:' + b.color + ';">' + b.reqs.length + '</div><div class="label" style="color:' + b.color + ';">' + b.label + '</div></div>';
+    html += '<div class="summary-item" style="background:' + b.color + '22;border:1px solid ' + b.color + '55;" onclick="togglePendingBucket(' + idx + ')"><div class="num" style="color:' + b.color + ';">' + b.reqs.length + '</div><div class="label" style="color:' + b.color + ';">' + b.label + '</div></div>';
   });
   html += '</div>';
 
-  // Summary table by recruiter
-  html += '<div class="filterable-section section-bucket0 section-bucket1 section-bucket2 section-bucket3">';
+  // Summary table by recruiter (always visible)
+  html += '<div>';
   html += '<table><tr><th>Recruiter</th><th>&lt; 30 days</th><th>30-60 days</th><th>60-90 days</th><th>&gt; 90 days</th><th>Total</th></tr>';
   Object.keys(countsByRecruiter).sort().forEach(function(rec) {
     var c = countsByRecruiter[rec];
@@ -530,10 +609,10 @@ function runPendingApproval() {
   Object.keys(countsByRecruiter).forEach(function(r) { var c = countsByRecruiter[r]; gt.u += c.under30; gt.a += c.d30to60; gt.b += c.d60to90; gt.c += c.over90; });
   html += '<tr style="font-weight:700;background:rgba(255,153,0,0.1);"><td>Grand Total</td><td>' + gt.u + '</td><td>' + gt.a + '</td><td>' + gt.b + '</td><td>' + gt.c + '</td><td>' + pending.length + '</td></tr></table></div>';
 
-  // Detail sections for each bucket
+  // Detail sections for each bucket (collapsed by default)
   for (var b = 0; b < buckets.length; b++) {
     if (buckets[b].reqs.length > 0) {
-      html += '<div class="filterable-section section-bucket' + b + '">';
+      html += '<div class="pending-bucket-detail" id="pendingBucket' + b + '" style="display:none;">';
       html += '<h3 style="color:' + buckets[b].color + ';margin-top:20px;margin-bottom:10px;"><i class="fas fa-exclamation-triangle"></i> ' + buckets[b].label + ' (' + buckets[b].reqs.length + ')</h3>';
       html += '<table><tr><th>Recruiter</th><th>Days Pending</th><th>Req URL</th><th>Hiring Manager</th></tr>';
       buckets[b].reqs.sort(function(a, bb) { return bb.days - a.days; }).forEach(function(r) {
@@ -552,6 +631,22 @@ function runPendingApproval() {
 }
 
 // ========== COPY FUNCTIONS ==========
+
+function togglePendingBucket(idx) {
+  var detail = document.getElementById('pendingBucket' + idx);
+  var cards = document.querySelectorAll('#pendingOutput .summary-item');
+  if (!detail) return;
+  var isVisible = detail.style.display !== 'none';
+  // Hide all detail sections and deactivate all cards
+  document.querySelectorAll('.pending-bucket-detail').forEach(function(d) { d.style.display = 'none'; });
+  cards.forEach(function(c) { c.classList.remove('active'); });
+  // Toggle the clicked one
+  if (!isVisible) {
+    detail.style.display = 'block';
+    if (cards[idx]) cards[idx].classList.add('active');
+  }
+}
+
 function copyTabText(containerId) {
   var container = document.getElementById(containerId);
   var tables = container.querySelectorAll('table');
