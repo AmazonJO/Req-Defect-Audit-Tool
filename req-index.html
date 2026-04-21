@@ -716,7 +716,6 @@ function runRosterAdoption(rows) {
   // Summary cards
   var html='<div class="summary-card">';
   html+='<div class="summary-item" style="background:rgba(245,101,101,0.15);border:1px solid rgba(245,101,101,0.3);cursor:default;"><div class="num" style="color:#f56565;">'+notAdopted.length+'</div><div class="label" style="color:#f56565;">Not Adopted</div></div>';
-  html+='<div class="summary-item" style="background:rgba(99,179,237,0.15);border:1px solid rgba(99,179,237,0.3);cursor:default;"><div class="num" style="color:#63b3ed;">'+rows.length+'</div><div class="label" style="color:#63b3ed;">Total Reqs</div></div>';
   html+='</div>';
 
   // Summary by recruiter
@@ -802,8 +801,21 @@ function copyTabFormatted(containerId) {
     html += '</table>';
   });
   html += '</div>';
-  var blob = new Blob([html], { type: 'text/html' });
-  navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]).then(function(){ showCopiedAlert(); });
+  // Use document.execCommand fallback for file:// URLs
+  var temp = document.createElement('div');
+  temp.innerHTML = html;
+  temp.style.position = 'fixed';
+  temp.style.left = '-9999px';
+  document.body.appendChild(temp);
+  var range = document.createRange();
+  range.selectNodeContents(temp);
+  var sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  document.execCommand('copy');
+  sel.removeAllRanges();
+  document.body.removeChild(temp);
+  showCopiedAlert();
 }
 
 function showCopiedAlert() {
