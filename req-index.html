@@ -308,17 +308,25 @@ function runAudit(rows) {
   var out='';
   if(yellow.length>0){out+='<div class="filterable-section section-yellow"><h3 style="color:#edbb34;margin-top:20px;">Needs Review ('+yellow.length+')</h3>'+auditDetailTable(yellow,'row-yellow')+'</div>';}
   if(red.length>0){out+='<div class="filterable-section section-red"><h3 style="color:#f56565;margin-top:20px;">Misassigned ('+red.length+')</h3>'+auditDetailTable(red,'row-red')+'</div>';}
+  out+='<div style="display:flex;gap:10px;margin-top:14px;"><button class="copy-btn" onclick="copyTabText(\'auditOutput\')"><i class="fas fa-copy"></i> Copy as Text</button><button class="copy-btn" onclick="copyTabFormatted(\'auditOutput\')" style="background:#ff9900;color:#111;font-weight:700;"><i class="fas fa-table"></i> Copy as Formatted Table</button></div>';
   document.getElementById('auditOutput').innerHTML=out;
   document.getElementById('auditResults').style.display='block';
 }
 function auditDetailTable(reqs,cls){
-  var h='<table><tr><th>Recruiter</th><th>Req URL</th><th>Job Family</th><th>Hiring Manager</th><th>Notes</th></tr>';
+  var h='<table style="table-layout:auto;"><tr><th style="width:120px;">Recruiter</th><th style="width:50px;">Req</th><th style="width:100px;">Job Family</th><th style="width:120px;">Hiring Manager</th><th style="width:60px;">Status</th><th style="width:80px;">Notes</th></tr>';
   reqs.forEach(function(r){
     var url=r.reqUrl?'<a href="'+r.reqUrl+'" target="_blank" style="color:#63b3ed;">Link</a>':'—';
+    var status='';
+    if(r.hireState){
+      var hs=r.hireState.toLowerCase();
+      if(hs==='pooling') status='<span class="tag" style="background:rgba(99,179,237,0.2);color:#63b3ed;">Pooling</span>';
+      else if(hs==='open') status='<span class="tag tag-green">Open</span>';
+      else if(hs.indexOf('pending')!==-1) status='<span class="tag" style="background:rgba(255,153,0,0.2);color:#ff9900;">Pending</span>';
+      else status='<span class="tag" style="background:rgba(255,255,255,0.1);color:var(--text-secondary);">'+r.hireState+'</span>';
+    }
     var notes='';
-    if(r.hireState&&r.hireState.toLowerCase()==='pooling') notes+='<span class="tag" style="background:rgba(99,179,237,0.2);color:#63b3ed;">Pooling</span> ';
     if(r.jobLevel&&r.jobLevel.toString().indexOf('7')!==-1) notes+='<span class="tag" style="background:rgba(159,122,234,0.2);color:#b794f4;">L7</span> ';
-    h+='<tr class="'+cls+'"><td>'+r.recruiter+'</td><td>'+url+'</td><td>'+r.jobFamily+'</td><td>'+r.hm+'</td><td>'+notes+'</td></tr>';
+    h+='<tr class="'+cls+'"><td>'+r.recruiter+'</td><td>'+url+'</td><td>'+r.jobFamily+'</td><td>'+r.hm+'</td><td>'+status+'</td><td>'+notes+'</td></tr>';
   });
   return h+'</table>';
 }
@@ -416,6 +424,7 @@ function runDefects() {
   html+='<tr style="font-weight:700;background:rgba(255,153,0,0.1);"><td>Grand Total</td>';
   types.forEach(function(t){html+='<td>'+grandTotals[t]+'</td>';});
   html+='<td>'+grandTotal+'</td></tr></table>';
+  html+='<div style="display:flex;gap:10px;margin-top:14px;"><button class="copy-btn" onclick="copyTabText(\'defectsOutput\')"><i class="fas fa-copy"></i> Copy as Text</button><button class="copy-btn" onclick="copyTabFormatted(\'defectsOutput\')" style="background:#ff9900;color:#111;font-weight:700;"><i class="fas fa-table"></i> Copy as Formatted Table</button></div>';
 
   document.getElementById('defectsOutput').innerHTML=html;
   document.getElementById('defectsResults').style.display='block';
@@ -452,6 +461,7 @@ function runMissingPids() {
     html+='<tr><td>'+name+'</td><td>'+counts[name]+'</td></tr>';
   });
   html+='<tr style="font-weight:700;background:rgba(255,153,0,0.1);"><td>Grand Total</td><td>'+missing.length+'</td></tr></table>';
+  html+='<div style="display:flex;gap:10px;margin-top:14px;"><button class="copy-btn" onclick="copyTabText(\'pidsOutput\')"><i class="fas fa-copy"></i> Copy as Text</button><button class="copy-btn" onclick="copyTabFormatted(\'pidsOutput\')" style="background:#ff9900;color:#111;font-weight:700;"><i class="fas fa-table"></i> Copy as Formatted Table</button></div>';
 
   document.getElementById('pidsOutput').innerHTML=html;
   document.getElementById('pidsResults').style.display='block';
@@ -534,9 +544,54 @@ function runPendingApproval() {
     }
   }
 
+  html += '<div style="display:flex;gap:10px;margin-top:14px;"><button class="copy-btn" onclick="copyTabText(\'pendingOutput\')"><i class="fas fa-copy"></i> Copy as Text</button><button class="copy-btn" onclick="copyTabFormatted(\'pendingOutput\')" style="background:#ff9900;color:#111;font-weight:700;"><i class="fas fa-table"></i> Copy as Formatted Table</button></div>';
+
   document.getElementById('pendingOutput').innerHTML = html;
   document.getElementById('pendingResults').style.display = 'block';
   document.getElementById('pendingUploadReminder').style.display = 'none';
+}
+
+// ========== COPY FUNCTIONS ==========
+function copyTabText(containerId) {
+  var container = document.getElementById(containerId);
+  var tables = container.querySelectorAll('table');
+  var text = '';
+  tables.forEach(function(table) {
+    table.querySelectorAll('tr').forEach(function(row) {
+      var cells = row.querySelectorAll('th, td');
+      text += Array.from(cells).map(function(c) { return c.innerText.trim(); }).join('\t') + '\n';
+    });
+    text += '\n';
+  });
+  navigator.clipboard.writeText(text);
+}
+
+function copyTabFormatted(containerId) {
+  var container = document.getElementById(containerId);
+  var tables = container.querySelectorAll('table');
+  var html = '<div style="font-family:Segoe UI,Arial,sans-serif;">';
+  tables.forEach(function(table) {
+    html += '<table style="border-collapse:collapse;width:100%;margin-bottom:16px;font-size:13px;">';
+    var rows = table.querySelectorAll('tr');
+    for (var r = 0; r < rows.length; r++) {
+      html += '<tr>';
+      var cells = rows[r].querySelectorAll('th, td');
+      for (var c = 0; c < cells.length; c++) {
+        var tag = cells[c].tagName === 'TH' ? 'th' : 'td';
+        var bg = tag === 'th' ? '#ff9900' : (r % 2 === 0 ? '#ffffff' : '#f9f9f9');
+        var color = tag === 'th' ? '#111' : '#333';
+        var cellContent = cells[c].innerText.trim();
+        var link = cells[c].querySelector('a');
+        if (link) cellContent = '<a href="' + link.href + '" style="color:#0066cc;">' + link.innerText.trim() + '</a>';
+        html += '<' + tag + ' style="border:1px solid #ccc;padding:6px 10px;background:' + bg + ';color:' + color + ';font-size:12px;">' + cellContent + '</' + tag + '>';
+      }
+      html += '</tr>';
+    }
+    html += '</table>';
+  });
+  html += '</div>';
+  var blob = new Blob([html], { type: 'text/html' });
+  navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
 }
 </script>
 </body>
